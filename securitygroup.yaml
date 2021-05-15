@@ -1,0 +1,99 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+    This template contains the Security Groups.
+Parameters:
+  VPC:
+    Description: VPC 
+    Type: "AWS::EC2::VPC::Id"
+
+Resources:
+
+  ###### Create a Security Group for Wordpress Instances ######
+  WordpressSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: Website EC2 security group
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      SecurityGroupIngress:
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          #CidrIp: 0.0.0.0/0
+          SourceSecurityGroupId:
+            Ref: WEBALBSG
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          #CidrIp: 0.0.0.0/0
+          SourceSecurityGroupId:
+            Ref: WEBALBSG
+      Tags:
+        - Key: Name
+          Value: WordpressHostSG
+
+  # This security group defines who/where is allowed to access the Application Load Balancer.
+  # By default, we've opened this up to the public internet (0.0.0.0/0) but can you restrict
+  # it further if you want.
+  WEBALBSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: ALB-WEBSG
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0    
+      Tags:
+        - Key: Name
+          Value: WEBALBSG   
+
+  ###### Create a Security Group for RDS instances" ######
+  RDSSG:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: Security group for RDS DB Instance.
+      SecurityGroupIngress:
+      - FromPort: 3306
+        ToPort: 3306
+        IpProtocol: tcp
+        SourceSecurityGroupId:
+          Ref: WordpressSG
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: RDSSG         
+
+
+Outputs:
+
+  WordpressSG: 
+    Description: A reference to the security group for Wordpress
+    Value: !Ref WordpressSG
+
+  WEBALBSG:
+    Description: A reference to the security group for Web ALB
+    Value: !Ref WEBALBSG
+
+  RDSSG:
+    Description: A reference to the security group for RDS
+    Value: !Ref RDSSG         
