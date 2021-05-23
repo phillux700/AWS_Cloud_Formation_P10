@@ -1,0 +1,37 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+    This template describes a new IAM user. 
+Parameters:
+  ServerEnv:
+    Description: "Server Environment name."
+    Type: "String"  
+
+Resources:
+  ################################## IAM USER #############################################
+
+  ###### DOCUMENTATION ######
+  # https://docs.aws.amazon.com/fr_fr/AWSCloudFormation/latest/UserGuide/aws-properties-iam-user.html
+  ###########################    
+  IAMUser:
+    Type: 'AWS::IAM::User'
+    Properties:
+      Policies:
+        - PolicyName: !Sub "${ServerEnv}-S3FullAccess"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - s3:*
+              Resource: "*"
+
+  ################################## IAM ACCESS KEY #############################################
+
+  ###### DOCUMENTATION ######
+  # https://docs.aws.amazon.com/fr_fr/AWSCloudFormation/latest/UserGuide/aws-properties-iam-accesskey.html
+  ###########################   
+  IAMUserCredentials:
+    Type: 'AWS::IAM::AccessKey'
+    Properties:
+      UserName: !Ref IAMUser

@@ -1,0 +1,91 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+    This template creates a new RDS instance and its replica. 
+Parameters:
+  ServerEnv:
+    Description: "Server Environment name."
+    Type: "String"  
+
+  PrivateSubnets:
+    Description: "Subnets to launch instances into"
+    Type: "List<AWS::EC2::Subnet::Id>"  
+
+  DBUser:
+    NoEcho: 'true'
+    Type: "String"
+    Description: "Database admin account name"
+
+  DBPassword:
+    NoEcho: 'true'
+    Type: "String"
+    Description: "Database admin account password"
+
+  DBName:
+    Type: "String"
+    Description: "Database name"
+    
+  DBSize:
+    Type: "String"
+    Description: "Database storage size in gigabytes (GB)"
+
+  DBClass:
+    Type: "String"
+    Description: "Database instance class, e.g. db.t2.micro (free tier)"
+
+  Engine:
+    Type: "String"
+    Description: "MySQL"
+    
+  Zone1:
+    Type: "String"
+    Description: "first zone"
+    
+  Zone2:
+    Type: "String"
+    Description: "second zone"     
+
+  RDSSG:
+    Description: "Security Group for RDS"
+    Type: "AWS::EC2::SecurityGroup::Id"   
+
+Resources:
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for RDS Database
+      SubnetIds: !Ref PrivateSubnets
+
+  MasterDB:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBName: !Ref DBName
+      AllocatedStorage: !Ref DBSize
+      DBInstanceClass: !Ref DBClass
+      Engine: MySQL
+      MasterUsername: !Ref DBUser
+      MasterUserPassword: !Ref DBPassword
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      StorageType: gp2
+      PubliclyAccessible: false
+      AvailabilityZone: !Ref Zone1
+      Tags:
+        - Key: Name
+          Value: !Sub '${ServerEnv}-MasterDatabase'
+      VPCSecurityGroups: 
+        - !Ref RDSSG
+    DeletionPolicy: Delete
+
+  ###### DOCUMENTATION ######
+  #
+  ###########################
+  ReplicaDB:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      SourceDBInstanceIdentifier: !Ref MasterDB
+      DBInstanceClass: !Ref DBClass
+      AvailabilityZone: !Ref Zone2
+      Tags:
+        - Key: Name
+          Value: Read Replica Database 

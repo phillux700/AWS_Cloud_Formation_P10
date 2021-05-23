@@ -1,19 +1,24 @@
 ---
-AWSTemplateFormatVersion: 2010-09-09
-Description: >-
-  This stack deploys:
-    - VPC with private and public subnets in two Availability Zones.
-    - An Internet Gateaway
-    - NAT Gateway
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+    This is a master template to create a Web Application Architecture.
+    Author: Philippe Traon <ptraon@pm.me>
+###############################################################################################################
 Parameters:
-  EnvironmentName:
-    Description: An environment name that will be prefixed to resource names
-    Type: String
-    Default: P10
+
+  ServerEnv:
+      Description: "Server Environment name."
+      ConstraintDescription: "Choose an Environment from the drop down"
+      Type: "String"
+      AllowedValues: 
+        - "dev"
+        - "staging"
+        - "prod"
+      Default: "dev"
   VpcCidrBlock:
     Type: String
     Default: 10.0.0.0/16
-    Description: Entre le CIDR block principal.
+    Description: Entre le CIDR block principal.  
   PublicSubnet1CIDR:
     Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
     Type: String
@@ -45,261 +50,121 @@ Parameters:
   Zone3:
     Description: Please enter the third Availability Zone
     Type: String
-    Default: eu-west-1c  
+    Default: eu-west-1c    
+  DBClass:
+    Description: The database instance type
+    Type: String
+    Default: db.t2.micro
+    AllowedValues:
+      - db.t1.micro
+      - db.m1.small
+      - db.m1.medium
+      - db.t2.micro
+    ConstraintDescription: must select a valid database instance type.
+  DBName:
+    Default: wordpressdb
+    Description: The WordPress database name
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
+  DBUser:
+    NoEcho: 'true'
+    Description: The WordPress database admin account username
+    Type: String
+    Default: admin
+    MinLength: '1'
+    MaxLength: '16'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
+  DBPassword:
+    NoEcho: 'true'
+    Description: The WordPress database admin account password
+    Type: String
+    Default: password
+    MinLength: '8'
+    MaxLength: '41'
+    AllowedPattern: '[a-zA-Z0-9]*'
+    ConstraintDescription: must contain only alphanumeric characters.
+  DBSize:
+    Default: '5'
+    Description: The size of the database (Gb)
+    Type: Number
+    MinValue: '5'
+    MaxValue: '21'
+    ConstraintDescription: must be between 5 and 21Gb.    
+  TemplateURL:
+      Description: "Enter an existing S3 Cloudformation Bucket."
+      Type: "String"
+      Default: "https://p10aws.s3-eu-west-1.amazonaws.com/infra"
+       
 
-Resources:
-  
-  ###### Create custom VPC ######
-  VPC10:
-    Type: 'AWS::EC2::VPC'
-    Properties:
-      CidrBlock: !Ref VpcCidrBlock
-      Tags:
-        - Key: Name
-          Value: 'VPC10'     
+Resources:  
 
-  ###### Create public subnets ######
-  PublicSubnet1:
-    Type: AWS::EC2::Subnet
+  Network:
+    Type: "AWS::CloudFormation::Stack"
     Properties:
-      VpcId: !Ref VPC10
-      AvailabilityZone: !Ref Zone1
-      CidrBlock: !Ref PublicSubnet1CIDR
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: 'VPC10-public-a (AZ A)'
-  PublicSubnet2:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VPC10
-      AvailabilityZone: !Ref Zone2
-      CidrBlock: !Ref PublicSubnet2CIDR
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: 'VPC10-public-b (AZ B)'  
+      TemplateURL: !Sub "${TemplateURL}/network.yaml"
+      Parameters:
+        VpcCidrBlock: !Ref VpcCidrBlock
+        ServerEnv: !Ref ServerEnv
+        PublicSubnet1CIDR: !Ref PublicSubnet1CIDR
+        PublicSubnet2CIDR: !Ref PublicSubnet2CIDR
+        PrivateSubnet1CIDR: !Ref PrivateSubnet1CIDR
+        PrivateSubnet2CIDR: !Ref PrivateSubnet2CIDR
+        PrivateSubnet3CIDR: !Ref PrivateSubnet3CIDR
+        Zone1: !Ref Zone1
+        Zone2: !Ref Zone2
+        Zone3: !Ref Zone3
 
-  ###### Create private subnets ######        
-  PrivateSubnet1:
-    Type: AWS::EC2::Subnet
+  SecurityGroup:
+    Type: "AWS::CloudFormation::Stack"
+    DependsOn: 
+      - Network
     Properties:
-      VpcId: !Ref VPC10
-      AvailabilityZone: !Ref Zone1
-      CidrBlock: !Ref PrivateSubnet1CIDR
-      Tags:
-        - Key: Name
-          Value: 'VPC10-private-a (AZ A)'       
-  PrivateSubnet2:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VPC10
-      AvailabilityZone: !Ref Zone2
-      CidrBlock: !Ref PrivateSubnet2CIDR
-      Tags:
-        - Key: Name
-          Value: 'VPC10-private-b (AZ B)'       
-  PrivateSubnet3:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VPC10
-      AvailabilityZone: !Ref Zone3
-      CidrBlock: !Ref PrivateSubnet3CIDR
-      Tags:
-        - Key: Name
-          Value: 'VPC10-private-c (AZ C)' 
+      TemplateURL: !Sub "${TemplateURL}/securitygroup.yaml"
+      Parameters:
+        ServerEnv: !Ref ServerEnv
+        VPC: !GetAtt "Network.Outputs.VPC"  
 
-  ###### Create Internet Gateway ######         
-  InternetGateway:
-    Type: AWS::EC2::InternetGateway
+  IAM:
+    Type: "AWS::CloudFormation::Stack"
+    DependsOn: 
+      - Network
     Properties:
-      Tags:
-        - Key: Name
-          Value: 'VPC10-InternetGateway'
+      TemplateURL: !Sub "${TemplateURL}/iam.yaml"
+      Parameters:
+        ServerEnv: !Ref ServerEnv
 
-  ###### Attach Internet Gateway to VPC ###### 
-  AttachInternetGateway:
-    Type: 'AWS::EC2::VPCGatewayAttachment'
+  S3:
+    Type: "AWS::CloudFormation::Stack"
+    DependsOn: 
+      - Network
+      - IAM
     Properties:
-      VpcId: !Ref VPC10
-      InternetGatewayId: !Ref InternetGateway
+      TemplateURL: !Sub "${TemplateURL}/s3.yaml"
+      Parameters:
+        ServerEnv: !Ref ServerEnv   
 
-  ###### Create Public Route Table ######
-  PublicRouteTable1:
-    Type: AWS::EC2::RouteTable
+  RDS:
+    Type: "AWS::CloudFormation::Stack"
+    DependsOn: 
+      - SecurityGroup
     Properties:
-      VpcId: !Ref VPC10
-      Tags:
-        - Key: Name
-          Value: !Sub ${EnvironmentName} Public Routes (AZ A) 
-  PublicRouteTable2:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref VPC10
-      Tags:
-        - Key: Name
-          Value: !Sub ${EnvironmentName} Public Routes (AZ B) 
+      TemplateURL: !Sub "${TemplateURL}/rds.yaml"
+      Parameters:
+        ServerEnv: !Ref ServerEnv 
+        DBName: !Ref DBName
+        DBSize: !Ref DBSize
+        DBClass: !Ref DBClass
+        Engine: MySQL
+        DBUser: !Ref DBUser
+        DBPassword: !Ref DBPassword
+        Zone1: !Ref Zone1
+        Zone2: !Ref Zone2
+        RDSSG: !GetAtt "SecurityGroup.Outputs.RDSSG"
+        PrivateSubnets: !GetAtt "Network.Outputs.PrivateSubnets"
 
-  ###### Create Private Route Table ######              
-  PrivateRouteTable1:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref VPC10
-      Tags:
-        - Key: Name
-          Value: !Sub ${EnvironmentName} Private Routes (AZ A)
-  PrivateRouteTable2:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref VPC10
-      Tags:
-        - Key: Name
-          Value: !Sub ${EnvironmentName} Private Routes (AZ B)
-          
-  ###### Route Public Route to Internet Gateway ######                 
-  PublicRoute1:
-    Type: AWS::EC2::Route
-    Properties:
-      GatewayId: !Ref InternetGateway
-      DestinationCidrBlock: 0.0.0.0/0
-      RouteTableId: !Ref PublicRouteTable1
-  PublicRoute2:
-    Type: AWS::EC2::Route
-    Properties:
-      GatewayId: !Ref InternetGateway
-      DestinationCidrBlock: 0.0.0.0/0
-      RouteTableId: !Ref PublicRouteTable2
-      
-  ###### Associate Public Route Table with Public Subnets ######  
-  AttachPublicRouteTable1:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId: !Ref PublicRouteTable1
-      SubnetId: !Ref PublicSubnet1
-  AttachPublicRouteTable2:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId: !Ref PublicRouteTable2
-      SubnetId: !Ref PublicSubnet2 
-      
-  ###### Associate Private Route Table with Private Subnets ######           
-  AttachPrivateRouteTable1:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId: !Ref PrivateRouteTable1
-      SubnetId: !Ref PrivateSubnet1 
-  AttachPrivateRouteTable2:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId: !Ref PrivateRouteTable2
-      SubnetId: !Ref PrivateSubnet2 
-      
-  ###### Create NAT gateway (with Elastic Ips) in Public Subnets ######
-  NatEip1:
-    Type: AWS::EC2::EIP
-    Properties:
-      Domain: vpc
-  NatEip2:
-    Type: AWS::EC2::EIP
-    Properties:
-      Domain: vpc
-  NatGateway1:
-    DependsOn: AttachInternetGateway
-    Type: AWS::EC2::NatGateway
-    Properties:
-      AllocationId: !GetAtt NatEip1.AllocationId
-      SubnetId: !Ref PublicSubnet1
-      Tags:
-        - Key: Name
-          Value: VPC10-nat-a (AZ A)
-  NatGateway2:
-    DependsOn: AttachInternetGateway
-    Type: AWS::EC2::NatGateway
-    Properties:
-      AllocationId: !GetAtt NatEip2.AllocationId
-      SubnetId: !Ref PublicSubnet2
-      Tags:
-        - Key: Name
-          Value: VPC10-nat-b (AZ B)            
-  NatPrivateRoute1:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !Ref PrivateRouteTable1
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NatGateway1
-  NatPrivateRoute2:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !Ref PrivateRouteTable2
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NatGateway2       
 
-  ###### ACL ######
-  NetworkACL:
-    Type: AWS::EC2::NetworkAcl
-    Properties:
-      VpcId: !Ref VPC10
-      Tags:
-        - Key: Name
-          Value: NetworkACL
 
-  ###### Associate Public Subnet to NACL ######
-  PublicSubnet1NetworkAclAssociation:
-    Type: AWS::EC2::SubnetNetworkAclAssociation
-    Properties:
-      SubnetId: !Ref PublicSubnet1
-      NetworkAclId: !Ref NetworkACL
-
-  PublicSubnet2NetworkAclAssociation:
-    Type: AWS::EC2::SubnetNetworkAclAssociation
-    Properties:
-      SubnetId: !Ref PublicSubnet2
-      NetworkAclId: !Ref NetworkACL
-
-  ###### Associate Private Subnet to NACL ######
-  MyPrivateSubnet1NetworkAclAssociation:
-    Type: "AWS::EC2::SubnetNetworkAclAssociation"
-    Properties:
-      SubnetId: !Ref PrivateSubnet1
-      NetworkAclId: !Ref NetworkACL
-
-  MyPrivateSubnet2NetworkAclAssociation:
-    Type: "AWS::EC2::SubnetNetworkAclAssociation"
-    Properties:
-      SubnetId: !Ref PrivateSubnet2
-      NetworkAclId: !Ref NetworkACL    
-
-  
-Outputs: 
-
-  VPC: 
-    Description: "A reference to the created VPC"
-    Value: !Ref VPC10
-
-  MyNetworkACL: 
-    Description: "A reference to the created VPC"
-    Value: !Ref NetworkACL
-
-  PublicSubnets:
-    Description: "A list of the public subnets"
-    Value: !Join [ ",", [ !Ref "PublicSubnet1", !Ref "PublicSubnet2" ]]
-
-  PrivateSubnets:
-    Description: "A list of the private subnets"
-    Value: !Join [ ",", [ !Ref "PrivateSubnet1", !Ref "PrivateSubnet2" ]]
-
-  PublicSubnet1:
-    Description: "A reference to the public subnet in the 1st Availability Zone"
-    Value: !Ref PublicSubnet1
-
-  PublicSubnet2: 
-    Description: "A reference to the public subnet in the 2nd Availability Zone"
-    Value: !Ref PublicSubnet2
-
-  PrivateSubnet1:
-    Description: "A reference to the private subnet in the 1st Availability Zone"
-    Value: !Ref PrivateSubnet1
-
-  PrivateSubnet2: 
-    Description: "A reference to the private subnet in the 2nd Availability Zone"
-    Value: !Ref PrivateSubnet2   

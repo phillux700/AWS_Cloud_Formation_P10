@@ -1,0 +1,66 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+    This template contains the Security Groups. 
+Parameters:
+  VPC:
+    Description: VPC 
+    Type: "AWS::EC2::VPC::Id"
+  ServerEnv:
+    Description: "Server Environment name."
+    Type: "String"  
+
+Resources:
+
+  ###### SECURITY GROUPS ############
+
+  ###### DOCUMENTATION ######
+  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-security-group.html
+  ###########################
+
+  ###### Create a Security Group for Wordpress Instances ######
+  EC2SG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: Enable HTTP, HTTPS & ICMP
+      SecurityGroupIngress:
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+      Tags:
+        - Key: Name
+          Value: WordpressHostSG
+
+  RDSSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPC 
+      GroupDescription: Enable 3306
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '3306'
+          ToPort: '3306'
+          SourceSecurityGroupId: !Ref EC2SG
+
+
+
+Outputs:
+
+  EC2SG: 
+    Description: "A reference to the security group for Proxy hosts"
+    Value: !Ref "EC2SG"
+
+  RDSSG:
+    Description: "A reference to the security group for RDS"
+    Value: !Ref "RDSSG"
+    Export:
+      Name: !Sub "${ServerEnv}-RDSSG"          
+             

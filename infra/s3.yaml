@@ -1,0 +1,22 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+    This template creates a new S3 bucket. 
+Parameters:
+  ServerEnv:
+    Description: "Server Environment name."
+    Type: "String"  
+
+Resources:
+
+  ################################## S3 BUCKET #############################################
+
+  ###### DOCUMENTATION ######
+  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-s3-bucket.html
+  ########################### 
+  S3Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub "${ServerEnv}-s3bucketp10"
+      AccessControl: PublicRead
+   #DeletionPolicy: Retain
