@@ -1,0 +1,68 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+    This template creates the load balancer for both EC2 instances. 
+Parameters:
+  ServerEnv:
+    Description: "Server Environment name."
+    Type: "String"  
+
+  VPC:
+    Description: VPC 
+    Type: "AWS::EC2::VPC::Id"  
+
+  PublicSubnets:
+    Description: "Subnets to launch instances into"
+    Type: "List<AWS::EC2::Subnet::Id>"   
+
+  EC2SG:
+    Description: "Security Group for the load balancer"
+    Type: "AWS::EC2::SecurityGroup::Id"   
+
+Resources:
+  ###### DOCUMENTATION ######
+  #
+  ###########################  
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Subnets: !Ref PublicSubnets
+      SecurityGroups:
+        - !Ref EC2SG
+      Tags:
+        - Key: Name
+          Value: !Sub '${ServerEnv}-LoadBalancer'  
+
+  ###### DOCUMENTATION ######
+  #
+  ########################### 
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn: !Ref ALBTargetGroup
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP  
+      
+  ###### DOCUMENTATION ######
+  #
+  ###########################         
+  ALBTargetGroup:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    Properties:
+      Port: 80
+      Protocol: HTTP
+      HealthCheckPath: /
+      HealthCheckIntervalSeconds: 10
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      VpcId: !Ref VPC      
+
+Outputs: 
+
+  ALBTargetGroup: 
+    Description: "A reference to the gtarget group"
+    Value: !Ref ALBTargetGroup        

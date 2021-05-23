@@ -1,0 +1,81 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+    This template creates the EC2 instances and manages the scaling. 
+Parameters:
+  ServerEnv:
+    Description: "Server Environment name."
+    Type: "String"  
+
+  PublicSubnets:
+    Description: "Subnets to launch instances into"
+    Type: "List<AWS::EC2::Subnet::Id>"  
+
+  InstanceType:
+    Description: "The type of ec2 instance"
+    Type: "String"  
+
+  ImageId:
+    Description: "The chosen AMI image"
+    Type: "String"   
+
+  EC2SG:
+    Description: "Security Group for the load balancer"
+    Type: "AWS::EC2::SecurityGroup::Id"  
+
+  ALBTargetGroup:
+    Description: "Target Group"
+    Type: "String"    
+
+Resources:
+  ###### DOCUMENTATION ######
+  #
+  ########################### 
+  ApplicationScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      LaunchConfigurationName: !Ref ApplicationLaunchConfig
+      VPCZoneIdentifier: !Ref PublicSubnets
+      DesiredCapacity: 2
+      MinSize: 2
+      MaxSize: 3
+      TargetGroupARNs:
+        - !Ref ALBTargetGroup
+
+  ###### DOCUMENTATION ######
+  #
+  ########################### 
+  WebServerScaleUpPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref ApplicationScalingGroup
+      Cooldown: '60'
+      ScalingAdjustment: 1
+  WebServerScaleDownPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref ApplicationScalingGroup
+      Cooldown: '60'
+      ScalingAdjustment: -1       
+
+  ###### DOCUMENTATION ######
+  #
+  ###########################
+  ApplicationLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      EbsOptimized: false
+      AssociatePublicIpAddress: true
+      ImageId: !Ref ImageId
+      InstanceType: !Ref InstanceType
+      SecurityGroups:
+        - !Ref EC2SG
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum install httpd php php-mysql -y
+          service httpd start
+          systemctl enable httpd
+          echo "<h1>Hello World</h1>" >> /var/www/html/index.html    

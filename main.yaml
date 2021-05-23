@@ -50,7 +50,19 @@ Parameters:
   Zone3:
     Description: Please enter the third Availability Zone
     Type: String
-    Default: eu-west-1c    
+    Default: eu-west-1c  
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
+      - t2.xlarge
+      - t2.2xlarge
+    ConstraintDescription: Must be a valid EC2 instance type.      
   DBClass:
     Description: The database instance type
     Type: String
@@ -98,7 +110,28 @@ Parameters:
       Description: "Enter an existing S3 Cloudformation Bucket."
       Type: "String"
       Default: "https://p10aws.s3-eu-west-1.amazonaws.com/infra"
-       
+
+Mappings:
+  AWSInstanceType2Arch:
+    t1.micro:
+      Arch: HVM64
+    t2.nano:
+      Arch: HVM64
+    t2.micro:
+      Arch: HVM64
+    t2.small:
+      Arch: HVM64
+    t2.medium:
+      Arch: HVM64
+    t2.large:
+      Arch: HVM64  
+  AWSRegionArch2AMI:
+    eu-west-1:
+      HVM64: ami-015232c01a82b847b
+    eu-west-2:
+      HVM64: ami-0765d48d7e15beb93
+    eu-west-3:
+      HVM64: ami-0caf07637eda19d9c       
 
 Resources:  
 
@@ -165,6 +198,34 @@ Resources:
         Zone2: !Ref Zone2
         RDSSG: !GetAtt "SecurityGroup.Outputs.RDSSG"
         PrivateSubnets: !GetAtt "Network.Outputs.PrivateSubnets"
+
+  LoadBalancer:
+    Type: "AWS::CloudFormation::Stack" 
+    Properties:
+      TemplateURL: !Sub "${TemplateURL}/loadbalancer.yaml"
+      Parameters:
+        ServerEnv: !Ref ServerEnv
+        VPC: !GetAtt "Network.Outputs.VPC" 
+        EC2SG: !GetAtt "SecurityGroup.Outputs.EC2SG"
+        PublicSubnets: !GetAtt "Network.Outputs.PublicSubnets"   
+
+  AutoScaling:
+    Type: "AWS::CloudFormation::Stack" 
+    Properties:
+      TemplateURL: !Sub "${TemplateURL}/autoscaling.yaml"  
+      Parameters:
+        ServerEnv: !Ref ServerEnv
+        PublicSubnets: !GetAtt "Network.Outputs.PublicSubnets" 
+        InstanceType: !Ref InstanceType
+        ImageId: !FindInMap 
+        - AWSRegionArch2AMI
+        - !Ref 'AWS::Region'
+        - !FindInMap 
+          - AWSInstanceType2Arch
+          - !Ref InstanceType
+          - Arch
+        EC2SG: !GetAtt "SecurityGroup.Outputs.EC2SG"  
+        ALBTargetGroup: !GetAtt "LoadBalancer.Outputs.ALBTargetGroup" 
 
 
 
