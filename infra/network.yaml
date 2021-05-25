@@ -1,10 +1,8 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
 Description: >-
-  This stack deploys:
-    - VPC with private and public subnets in two Availability Zones.
-    - An Internet Gateway
-    - NAT Gateway
+  This stack deploys the network (see main.yaml description)
+  Author: Philippe Traon <ptraon@pm.me>  
 
 Parameters:
   ServerEnv:
@@ -44,7 +42,7 @@ Resources:
 
   ###### DOCUMENTATION ######
   # https://docs.aws.amazon.com/fr_fr/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-vpc.html
-  # Réseau privé virtuel (section réseau isolée résidant dans une région AWS)
+  # https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Subnets.html
   ###########################
   VPC10:
     Type: AWS::EC2::VPC
@@ -58,9 +56,7 @@ Resources:
 
   ###### DOCUMENTATION ######
   # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-subnet.html
-  # Sous-réseau = portion d'un VPC
-  # Sous-réseau public => comporte une route permettant au trafic d'être routé vers l'extérieur et depuis l'intérieur.
-  # Sous-réseau privé => ne permet pas l'accès depuis l'extérieur
+  # https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Subnets.html
   ###########################
   PublicSubnet1:
     Type: AWS::EC2::Subnet
@@ -80,7 +76,6 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub "${ServerEnv}-${PublicSubnet2CIDR}-PublicSubnet2 (AZ B)"  
-
   PrivateSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
@@ -113,7 +108,7 @@ Resources:
 
   ###### DOCUMENTATION ######
   # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-internetgateway.html
-  # Passerelle Internet => permet de router du trafic réseau dans et hors du VPC.
+  # https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Internet_Gateway.html
   ###########################        
   InternetGateway:
     Type: AWS::EC2::InternetGateway
@@ -126,7 +121,6 @@ Resources:
 
   ###### DOCUMENTATION ######
   # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-vpc-gateway-attachment.html
-  # Nous devons associer notre passerelle Internet à notre VPC.
   ###########################
   AttachInternetGateway:
     Type: 'AWS::EC2::VPCGatewayAttachment'
@@ -138,6 +132,7 @@ Resources:
 
   ###### DOCUMENTATION ######
   # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-route-table.html
+  # https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Route_Tables.html
   ###########################
   PublicRouteTable1:
     Type: AWS::EC2::RouteTable
@@ -173,7 +168,6 @@ Resources:
 
   ###### DOCUMENTATION ######
   # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-route.html
-  # On crée une route vers la passerelle de sortie.
   ###########################                 
   PublicRoute1:
     Type: AWS::EC2::Route
@@ -220,7 +214,6 @@ Resources:
 
   ###### DOCUMENTATION ######
   # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-eip.html
-  # Une IP élastique est un eadresse IPv4 publique accessible depuis Internet.
   ########################### 
   NatEip1:
     Type: AWS::EC2::EIP
@@ -235,6 +228,7 @@ Resources:
 
   ###### DOCUMENTATION ######
   # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-natgateway.html
+  # https://docs.aws.amazon.com/vpc/latest/userguide/vpc-nat-gateway.html
   # Une passerelle NAT = une adresse IP élastique !
   # NAT = Network Address Translation
   # On associe une passerelle NAT à chaque réseau public.
@@ -276,7 +270,6 @@ Resources:
       RouteTableId: !Ref PrivateRouteTable2
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId: !Ref NatGateway2     
-
 
 Outputs: 
 

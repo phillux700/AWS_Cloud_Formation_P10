@@ -1,0 +1,39 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+    This template enables notifications.
+    Author: Philippe Traon <ptraon@pm.me>
+
+Resources:    
+
+  ################################### ALARMS #######################################################
+
+  ###### DOCUMENTATION ######
+  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-sns-topic.html
+  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/quickref-cloudwatch.html
+  ###########################
+  SNSTopic:
+    Type: "AWS::SNS::Topic"
+    Properties:
+      DisplayName: "Notif"
+      TopicName: "Notif"
+
+  ################################### ALARMS #######################################################
+
+  ###### DOCUMENTATION ######
+  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-sns-subscription.html
+  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/quickref-cloudwatch.html
+  ###########################
+  SNSSubscription:
+    Type: "AWS::SNS::Subscription"
+    Properties:
+      TopicArn: !Ref SNSTopic
+      Endpoint: "ptraon@pm.me"
+      Protocol: "email"
+      Region: !Ref AWS::Region    
+
+Outputs:
+
+  SNSTopic: 
+    Description: "Notification"
+    Value: !Ref "SNSTopic"         

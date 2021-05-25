@@ -1,0 +1,76 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+    This template scales up if CPU > 80% for 5 mns and
+    scales down if CPU < 60% for 10mns.
+    Author: Philippe Traon <ptraon@pm.me>
+
+Parameters:
+  ScalingGroup:
+    Description: "AutoScalingGroup"
+    Type: "String"
+  ScaleUpPolicy:
+    Description: "ScaleUpPolicy"
+    Type: "String"
+  ScaleDownPolicy:
+    Description: "ScaleDownPolicy"
+    Type: "String" 
+  SNSTopic:
+    Description: "SNSTopic"
+    Type: "String"  
+
+Resources:
+
+  ################################### ALARMS #######################################################
+
+  ###### DOCUMENTATION ######
+  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-cw-alarm.html
+  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/quickref-cloudwatch.html
+  ###########################
+  CPUAlarmHigh:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+      AlarmDescription: "Scale-up if CPU > 80% for 5 minutes"
+      MetricName: "CPUUtilization"
+      Namespace: "AWS/EC2"
+      Statistic: "Average"
+      Period: '300'
+      EvaluationPeriods: '1'
+      Threshold: '80'
+      AlarmActions:
+      - Ref: "ScaleUpPolicy"
+      - Ref: "SNSTopic"
+      Dimensions:
+      - Name: "AutoScalingGroupName"
+        Value:
+          Ref: "ScalingGroup"
+      ComparisonOperator: "GreaterThanThreshold"
+
+  CPUAlarmLow:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+      AlarmDescription: "Scale-down if CPU < 60% for 10 minutes"
+      MetricName: "CPUUtilization"
+      Namespace: "AWS/EC2"
+      Statistic: "Average"
+      Period: '600'
+      EvaluationPeriods: '1'
+      Threshold: '60'
+      AlarmActions:
+      - Ref: "ScaleDownPolicy"
+      - Ref: "SNSTopic"
+      Dimensions:
+      - Name: "AutoScalingGroupName"
+        Value:
+          Ref: "ScalingGroup"
+      ComparisonOperator: "GreaterThanThreshold"
+
+Outputs:
+
+  TrafficAlarmHigh:
+    Description: "CloudWatch Reference Web AlarmHigh"
+    Value: !Ref "CPUAlarmHigh"
+
+  TrafficAlarmLow: 
+    Description: "CloudWatch Reference Web AlarmLow"
+    Value: !Ref "CPUAlarmLow"       

@@ -2,27 +2,28 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
     This template creates the load balancer for both EC2 instances. 
+    Author: Philippe Traon <ptraon@pm.me>
 Parameters:
   ServerEnv:
     Description: "Server Environment name."
     Type: "String"  
-
   VPC:
     Description: VPC 
     Type: "AWS::EC2::VPC::Id"  
-
   PublicSubnets:
     Description: "Subnets to launch instances into"
-    Type: "List<AWS::EC2::Subnet::Id>"   
-
+    Type: "List<AWS::EC2::Subnet::Id>"
   EC2SG:
     Description: "Security Group for the load balancer"
     Type: "AWS::EC2::SecurityGroup::Id"   
 
 Resources:
+  ################################## LOAD BALANCER #############################################
+
   ###### DOCUMENTATION ######
-  #
-  ###########################  
+  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-elasticloadbalancingv2-loadbalancer.html
+  # https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html
+  ###########################    
   ApplicationLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
@@ -33,9 +34,12 @@ Resources:
         - Key: Name
           Value: !Sub '${ServerEnv}-LoadBalancer'  
 
+  ################################## LISTENER #################################################
+
   ###### DOCUMENTATION ######
-  #
-  ########################### 
+  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-elasticloadbalancingv2-listener.html
+  # https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-listeners.html
+  ###########################    
   ALBListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
@@ -46,11 +50,14 @@ Resources:
       Port: 80
       Protocol: HTTP  
       
+  ################################## TARGET GROUP #############################################
+
   ###### DOCUMENTATION ######
-  #
-  ###########################         
+  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-elasticloadbalancingv2-targetgroup.html
+  # https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-target-groups.html
+  ###########################            
   ALBTargetGroup:
-    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       Port: 80
       Protocol: HTTP
@@ -64,5 +71,5 @@ Resources:
 Outputs: 
 
   ALBTargetGroup: 
-    Description: "A reference to the gtarget group"
+    Description: "A reference to the target group"
     Value: !Ref ALBTargetGroup        

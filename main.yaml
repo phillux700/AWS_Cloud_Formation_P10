@@ -1,9 +1,25 @@
 ---
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
-    This is a master template to create a Web Application Architecture.
+    This is a master template to create :
+    1) a high-available Web Application Architecture.
+        - A VPC
+        - An Internet Gateway attached to the VPC.
+        - 2 private subnets in 2 available zones (one RDS Master in eu-west-1a and one replica in eu-west-1b).
+        - 2 public subnets for 2 EC2 instances (Wordpress installed with Docker).
+        - 1 Security Group for EC2 and 1 other for RDS.
+        - Route Tables, Routes And Route Tables associated with their subnets.
+        - 1 LoadBalancer to handle both EC2 instances.
+        - 1 Auto-scaling (one more instance if CPU > 80%)
+        - A CloudWatch Alarm and a SNS notification.
+
+    2) an intranet through a VPN connection.
+        #########################################################
+        ###################### FILL IN ########################## 
+        #########################################################
+
     Author: Philippe Traon <ptraon@pm.me>
-###############################################################################################################
+
 Parameters:
 
   ServerEnv:
@@ -12,13 +28,18 @@ Parameters:
       Type: "String"
       AllowedValues: 
         - "dev"
-        - "staging"
+        - "staging" --------------------------------------------------> What is "staging" ?
         - "prod"
       Default: "dev"
+  KeyName:
+    NoEcho: 'true'
+    Description: Enter an existing EC2 KeyPair in order to connect via SSH & CLI
+    Type: "String" 
+    Default: "cle_aws"   
   VpcCidrBlock:
     Type: String
     Default: 10.0.0.0/16
-    Description: Entre le CIDR block principal.  
+    Description: Enter the CidrBlock.  
   PublicSubnet1CIDR:
     Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
     Type: String
@@ -105,7 +126,12 @@ Parameters:
     Type: Number
     MinValue: '5'
     MaxValue: '21'
-    ConstraintDescription: must be between 5 and 21Gb.    
+    ConstraintDescription: must be between 5 and 21Gb.  
+  MyIP:
+    NoEcho: 'true'
+    Description: "My own IP ton connect EC2 via SSH" 
+    Type: String
+    Default: 'XX.XX.XX.XX/24'
   TemplateURL:
       Description: "Enter an existing S3 Cloudformation Bucket."
       Type: "String"
@@ -160,6 +186,7 @@ Resources:
       Parameters:
         ServerEnv: !Ref ServerEnv
         VPC: !GetAtt "Network.Outputs.VPC"  
+        MyIP: !Ref MyIP
 
   IAM:
     Type: "AWS::CloudFormation::Stack"
@@ -198,6 +225,8 @@ Resources:
         Zone2: !Ref Zone2
         RDSSG: !GetAtt "SecurityGroup.Outputs.RDSSG"
         PrivateSubnets: !GetAtt "Network.Outputs.PrivateSubnets"
+        PrivateSubnet1: !GetAtt "Network.Outputs.PrivateSubnet1"
+        PrivateSubnet2: !GetAtt "Network.Outputs.PrivateSubnet2"
 
   LoadBalancer:
     Type: "AWS::CloudFormation::Stack" 
@@ -215,6 +244,7 @@ Resources:
       TemplateURL: !Sub "${TemplateURL}/autoscaling.yaml"  
       Parameters:
         ServerEnv: !Ref ServerEnv
+        KeyName: !Ref KeyName
         PublicSubnets: !GetAtt "Network.Outputs.PublicSubnets" 
         InstanceType: !Ref InstanceType
         ImageId: !FindInMap 
@@ -226,6 +256,38 @@ Resources:
           - Arch
         EC2SG: !GetAtt "SecurityGroup.Outputs.EC2SG"  
         ALBTargetGroup: !GetAtt "LoadBalancer.Outputs.ALBTargetGroup" 
+
+  CloudWatch:
+    Type: "AWS::CloudFormation::Stack"
+    DependsOn:
+      - "AutoScaling"
+    Properties:
+      TemplateURL: !Sub "${TemplateURL}/cloudwatch.yaml"
+      TimeoutInMinutes: '5'
+      Parameters:
+        ScalingGroup: !GetAtt "AutoScaling.Outputs.ScalingGroup"
+        ScaleUpPolicy: !GetAtt "AutoScaling.Outputs.ScaleUpPolicy"
+        ScaleDownPolicy: !GetAtt "AutoScaling.Outputs.ScaleDownPolicy"
+        SNSTopic: !GetAtt "SNS.Outputs.SNSTopic"
+
+  SNS:
+    Type: "AWS::CloudFormation::Stack"
+    Properties:
+      TemplateURL: !Sub "${TemplateURL}/sns.yaml" 
+
+
+  ################### QUESTIONS POUR MENTORAT 27/05/2021 #############################
+  # 1) Si DB Master OUT, comment accéder au réplica ????
+  # 2) Les DBs c'est pour des backups ou c'est la DB de wordpress ??
+  # 3) Le stress test ne fonctionne pas sur les instances.........
+  # 4) adresse URL du site ? non-accessible....
+  # 5) Docker ou Docker-compose ? (Faire au plus simple) 
+  # 6) Pour le VPN côté AWS, ressource ? Amazon VPN ?
+  # 7) Côté on-premise: 2 serveurs Linux ou 1 serveur Linux plus un pfSense ??
+  # 8) CloudFront ?
+  # 9) Route53 ?
+  ####################################################################################
+
 
 
 

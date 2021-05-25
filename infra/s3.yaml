@@ -2,6 +2,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
     This template creates a new S3 bucket. 
+    Author: Philippe Traon <ptraon@pm.me>
 Parameters:
   ServerEnv:
     Description: "Server Environment name."

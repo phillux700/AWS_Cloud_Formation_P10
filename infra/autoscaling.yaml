@@ -2,35 +2,37 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
     This template creates the EC2 instances and manages the scaling. 
+    Author: Philippe Traon <ptraon@pm.me>
 Parameters:
   ServerEnv:
     Description: "Server Environment name."
     Type: "String"  
-
+  KeyName:
+    Description: "Enter an existing EC2 KeyPair."
+    Type: "String"  
   PublicSubnets:
     Description: "Subnets to launch instances into"
     Type: "List<AWS::EC2::Subnet::Id>"  
-
   InstanceType:
     Description: "The type of ec2 instance"
     Type: "String"  
-
   ImageId:
     Description: "The chosen AMI image"
-    Type: "String"   
-
+    Type: "String"  
   EC2SG:
     Description: "Security Group for the load balancer"
     Type: "AWS::EC2::SecurityGroup::Id"  
-
   ALBTargetGroup:
     Description: "Target Group"
     Type: "String"    
 
 Resources:
+
+  ################################### SCALING GROUP #######################################################
+
   ###### DOCUMENTATION ######
-  #
-  ########################### 
+  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-as-group.html
+  ###########################
   ApplicationScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
@@ -42,17 +44,20 @@ Resources:
       TargetGroupARNs:
         - !Ref ALBTargetGroup
 
+  ################################### SCALING POLICY #######################################################
+
   ###### DOCUMENTATION ######
-  #
-  ########################### 
-  WebServerScaleUpPolicy:
+  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-as-policy.html
+  # https://docs.aws.amazon.com/autoscaling/ec2/userguide/as-scale-based-on-demand.html
+  ###########################
+  ScaleUpPolicy:
     Type: AWS::AutoScaling::ScalingPolicy
     Properties:
       AdjustmentType: ChangeInCapacity
       AutoScalingGroupName: !Ref ApplicationScalingGroup
       Cooldown: '60'
       ScalingAdjustment: 1
-  WebServerScaleDownPolicy:
+  ScaleDownPolicy:
     Type: AWS::AutoScaling::ScalingPolicy
     Properties:
       AdjustmentType: ChangeInCapacity
@@ -60,13 +65,18 @@ Resources:
       Cooldown: '60'
       ScalingAdjustment: -1       
 
+  ################################### LAUNCH CONFIG #######################################################
+
   ###### DOCUMENTATION ######
-  #
+  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-as-launchconfig.html
+  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/quickref-autoscaling.html
+  # Connection via CLI: ssh -i <KEY_NAME>.pem ec2-user@<INSTANCE_IP>
   ###########################
   ApplicationLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
       EbsOptimized: false
+      KeyName: !Ref KeyName
       AssociatePublicIpAddress: true
       ImageId: !Ref ImageId
       InstanceType: !Ref InstanceType
@@ -75,7 +85,23 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
-          yum install httpd php php-mysql -y
-          service httpd start
-          systemctl enable httpd
-          echo "<h1>Hello World</h1>" >> /var/www/html/index.html    
+          yum update -y
+          yum install stress docker git -y
+          service docker start
+          curl -L "https://github.com/docker/compose/releases/download/1.23.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/bin/docker-compose && sudo chmod +x /usr/bin/docker-compose
+
+
+
+Outputs:
+
+  ScalingGroup: 
+    Description: "Auto Scaling Group Reference ID"
+    Value: !Ref "ApplicationScalingGroup"
+
+  ScaleUpPolicy: 
+    Description: "Auto Scaling Up Policy Reference ID"
+    Value: !Ref "ScaleUpPolicy"
+
+  ScaleDownPolicy: 
+    Description: "Auto Scaling Down Policy Reference ID"
+    Value: !Ref "ScaleDownPolicy"             

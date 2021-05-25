@@ -2,61 +2,71 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
     This template creates a new RDS instance and its replica. 
+    Author: Philippe Traon <ptraon@pm.me>
 Parameters:
   ServerEnv:
     Description: "Server Environment name."
     Type: "String"  
-
   PrivateSubnets:
     Description: "Subnets to launch instances into"
     Type: "List<AWS::EC2::Subnet::Id>"  
-
+  PrivateSubnet1:
+    Description: "Subnets to launch instances into"
+    Type: "AWS::EC2::Subnet::Id" 
+  PrivateSubnet2:
+    Description: "Subnets to launch instances into"
+    Type: "AWS::EC2::Subnet::Id"     
   DBUser:
     NoEcho: 'true'
     Type: "String"
     Description: "Database admin account name"
-
   DBPassword:
     NoEcho: 'true'
     Type: "String"
     Description: "Database admin account password"
-
   DBName:
     Type: "String"
-    Description: "Database name"
-    
+    Description: "Database name"   
   DBSize:
     Type: "String"
     Description: "Database storage size in gigabytes (GB)"
-
   DBClass:
     Type: "String"
     Description: "Database instance class, e.g. db.t2.micro (free tier)"
-
   Engine:
     Type: "String"
-    Description: "MySQL"
-    
+    Description: "MySQL"   
   Zone1:
     Type: "String"
-    Description: "first zone"
-    
+    Description: "first zone"   
   Zone2:
     Type: "String"
     Description: "second zone"     
-
   RDSSG:
     Description: "Security Group for RDS"
     Type: "AWS::EC2::SecurityGroup::Id"   
 
 Resources:
 
+  ################################## DB SUBNET GROUP #############################################
+
+  ###### DOCUMENTATION ######
+  # https://docs.aws.amazon.com/fr_fr/AWSCloudFormation/latest/UserGuide/aws-resource-rds-dbsubnet-group.html
+  # https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-target-groups.html
+  ###########################            
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
       DBSubnetGroupDescription: Subnet group for RDS Database
-      SubnetIds: !Ref PrivateSubnets
+      SubnetIds: 
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
 
+  ################################## DB INSTANCE(S) #############################################
+
+  ###### DOCUMENTATION ######
+  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-rds-database-instance.html
+  ###########################   
   MasterDB:
     Type: AWS::RDS::DBInstance
     Properties:
@@ -69,23 +79,10 @@ Resources:
       DBSubnetGroupName: !Ref DBSubnetGroup
       StorageType: gp2
       PubliclyAccessible: false
-      AvailabilityZone: !Ref Zone1
+      MultiAZ: True
       Tags:
         - Key: Name
           Value: !Sub '${ServerEnv}-MasterDatabase'
       VPCSecurityGroups: 
         - !Ref RDSSG
     DeletionPolicy: Delete
-
-  ###### DOCUMENTATION ######
-  #
-  ###########################
-  ReplicaDB:
-    Type: AWS::RDS::DBInstance
-    Properties:
-      SourceDBInstanceIdentifier: !Ref MasterDB
-      DBInstanceClass: !Ref DBClass
-      AvailabilityZone: !Ref Zone2
-      Tags:
-        - Key: Name
-          Value: Read Replica Database 
