@@ -1,0 +1,71 @@
+# Note, the development environment will only spin a min of 1 instance (Not HA Support)
+# The production environment will spin a min of 2 instance (HA support)
+# You can adjust the ASMIN, ASMAX, ASDES at the master.yaml file
+# to meet your instances spin numbers.
+#
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+    This template deploys an AutoScaling Launch Config and Group for WebServer
+Parameters: 
+
+  ServerEnv:
+    Description: "Server Environment name."
+    Type: "String"
+
+  PublicSubnets:
+    Description: "Subnets to launch instances into"
+    Type: "List<AWS::EC2::Subnet::Id>"
+
+  WordpressSG:
+    Description: "Select the Security Group to use for the EC2 hosts"
+    Type: "AWS::EC2::SecurityGroup::Id"
+
+  AmiIdentifier:
+    Type: String
+    Description: The AMI identifier to deploy.
+    Default: ami-033e77a8f6266b4cc  
+
+  WebSiteTargetGroup:
+    Type: String
+    Description: "Name of the target Group"
+
+
+Resources:
+
+  # Auto Scaling Launch Configuration
+  LaunchConfiguration:
+    Type: "AWS::AutoScaling::LaunchConfiguration"
+    Properties:
+      AssociatePublicIpAddress: "false"
+      ImageId: !Ref AmiIdentifier
+      InstanceType: t2.micro
+      SecurityGroups: 
+        - !Ref WordpressSG
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          yum install httpd php php-mysql -y
+          service httpd start
+          systemctl enable httpd
+          echo "<h1>Hello World</h1>" >> /var/www/html/index.html
+
+  # Auto Scaling Group Basic Setup
+  WebScalingGroup: 
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    Properties:
+      LaunchConfigurationName: !Ref LaunchConfiguration
+      AvailabilityZones:
+        - eu-west-1a
+        - eu-west-1b
+      VPCZoneIdentifier: !Ref PublicSubnets  
+      DesiredCapacity: 1
+      MinSize: 1
+      MaxSize: 1
+      TargetGroupARNs:
+        - !Ref WebSiteTargetGroup
+Outputs:
+
+  WebScalingGroup: 
+    Description: "Auto Scaling Group Reference ID"
+    Value: !Ref "WebScalingGroup"

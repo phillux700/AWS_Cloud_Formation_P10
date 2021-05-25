@@ -1,0 +1,56 @@
+# Note, the development RDS is not Multi-AZ supported
+# Only the production RDS is Multi-AZ supported
+# The default RDS Username/DBName/Password is for testing purpose only.
+#
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+    Database stack creation prerequisite:
+    - RDS Security Group
+Parameters:
+
+  ServerEnv:
+    Description: "Server Environment name."
+    ConstraintDescription: "Choose an Environment from the drop down"
+    Type: "String"
+
+  PrivateSubnets:
+    Description: "Subnets to launch instances into"
+    Type: "List<AWS::EC2::Subnet::Id>"
+
+  RDSSG:
+    Description: "Select the Security Group to use for the ELB"
+    Type: "AWS::EC2::SecurityGroup::Id"
+
+Resources:
+
+  Database:
+    Type: "AWS::RDS::DBInstance"
+    Properties:
+      DBSubnetGroupName: !Ref "DbSubnetGroup"
+      VPCSecurityGroups:
+      - Ref: "RDSSG"
+      Engine: "MySQL"
+      DBName: "test"
+      MasterUsername: "admin"
+      MasterUserPassword: "admin"
+      DBInstanceClass: "db.t2.micro"
+      AllocatedStorage: 5
+      MultiAZ: true
+      Port: 3306
+      PubliclyAccessible: 'false'
+      StorageEncrypted: 'false'
+      StorageType: gp2
+
+  DbSubnetGroup:
+    Type: "AWS::RDS::DBSubnetGroup"
+    Properties:
+      DBSubnetGroupDescription: "RDS DB subnet group"
+      SubnetIds:
+        Ref: "PrivateSubnets"
+
+Outputs:
+
+  RdsDbId:
+    Description: "RDS Database ID"
+    Value: !Ref "Database"
