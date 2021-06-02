@@ -66,6 +66,7 @@ Resources:
 
   ###### DOCUMENTATION ######
   # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-rds-database-instance.html
+  # https://docs.aws.amazon.com/fr_fr/AmazonRDS/latest/UserGuide/Concepts.MultiAZ.html
   ###########################   
   MasterDB:
     Type: AWS::RDS::DBInstance
@@ -86,3 +87,30 @@ Resources:
       VPCSecurityGroups: 
         - !Ref RDSSG
     DeletionPolicy: Delete
+
+
+Outputs:
+
+  RdsDbId:
+    Description: "RDS Database ID"
+    Value: !Ref "MasterDB"
+
+  DbName:
+    Description: "RDS Database Name"
+    Value: !Ref "DBName"
+
+  RdsDbURL:
+    Description: "RDS Database URL"
+    Value: !GetAtt "MasterDB.Endpoint.Address"
+
+  RdsDbPORT:
+    Description: "RDS Database PORT"
+    Value: !GetAtt "MasterDB.Endpoint.Port"
+
+  DbUser:
+    Description: "RDS Database admin account user"
+    Value: !Ref "DBUser"
+
+  DbPassword:
+    Description: "RDS Database admin account password"
+    Value: !Ref "DBPassword"    

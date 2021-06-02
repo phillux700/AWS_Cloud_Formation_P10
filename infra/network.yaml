@@ -50,7 +50,7 @@ Resources:
       CidrBlock: !Ref VpcCidrBlock
       Tags:
         - Key: Name
-          Value: !Sub "${ServerEnv}-VPC10" 
+          Value: !Sub "${ServerEnv}-VPC10"       
 
   ################################### SUBNETS ###################################################
 
@@ -84,7 +84,7 @@ Resources:
       CidrBlock: !Ref PrivateSubnet1CIDR
       Tags:
         - Key: Name
-          Value: !Sub "${ServerEnv}-${PrivateSubnet1CIDR}-PrivateSubnet1 (AZ A)"       
+          Value: !Sub "${ServerEnv}-${PrivateSubnet1CIDR}-PrivateSubnet1 (AZ A)"
   PrivateSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
@@ -93,7 +93,7 @@ Resources:
       CidrBlock: !Ref PrivateSubnet2CIDR
       Tags:
         - Key: Name
-          Value: !Sub "${ServerEnv}-${PrivateSubnet2CIDR}-PrivateSubnet2 (AZ B)"      
+          Value: !Sub "${ServerEnv}-${PrivateSubnet2CIDR}-PrivateSubnet2 (AZ B)"
   PrivateSubnet3:
     Type: AWS::EC2::Subnet
     Properties:
@@ -102,7 +102,7 @@ Resources:
       CidrBlock: !Ref PrivateSubnet3CIDR
       Tags:
         - Key: Name
-          Value: !Sub "${ServerEnv}-${PrivateSubnet3CIDR}-PrivateSubnet3 (AZ C)"  
+          Value: !Sub "${ServerEnv}-${PrivateSubnet3CIDR}-PrivateSubnet3 (AZ C)"
 
   ########################################## INTERNET GATEWAY #########################################         
 
@@ -123,10 +123,10 @@ Resources:
   # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-vpc-gateway-attachment.html
   ###########################
   AttachInternetGateway:
-    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Type: AWS::EC2::VPCGatewayAttachment
     Properties:
       VpcId: !Ref VPC10
-      InternetGatewayId: !Ref InternetGateway     
+      InternetGatewayId: !Ref InternetGateway   
 
   ######################################## ROUTE TABLES #############################################
 

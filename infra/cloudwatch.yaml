@@ -30,11 +30,11 @@ Resources:
   CPUAlarmHigh:
     Type: "AWS::CloudWatch::Alarm"
     Properties:
-      AlarmDescription: "Scale-up if CPU > 80% for 5 minutes"
+      AlarmDescription: "Scale-up if CPU > 80% for 1 minute"
       MetricName: "CPUUtilization"
       Namespace: "AWS/EC2"
       Statistic: "Average"
-      Period: '300'
+      Period: '60'
       EvaluationPeriods: '1'
       Threshold: '80'
       AlarmActions:
@@ -63,7 +63,7 @@ Resources:
       - Name: "AutoScalingGroupName"
         Value:
           Ref: "ScalingGroup"
-      ComparisonOperator: "GreaterThanThreshold"
+      ComparisonOperator: "LessThanThreshold"
 
 Outputs:
 

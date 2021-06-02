@@ -24,7 +24,25 @@ Parameters:
     Type: "AWS::EC2::SecurityGroup::Id"  
   ALBTargetGroup:
     Description: "Target Group"
-    Type: "String"    
+    Type: "String"  
+  RdsDbId:
+    Description: "RDS DB ID"
+    Type: "String"  
+  DbName: 
+    Description: "RDS DB Name"
+    Type: "String" 
+  RdsDbURL: 
+    Description: "RDS DB URL"
+    Type: "String" 
+  RdsDbPORT: 
+    Description: "RDS DB PORT"
+    Type: "String" 
+  DbUser: 
+    Description: "RDS DB User"
+    Type: "String" 
+  DbPassword:     
+    Description: "RDS DB Password"
+    Type: "String" 
 
 Resources:
 
@@ -70,6 +88,9 @@ Resources:
   ###### DOCUMENTATION ######
   # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-as-launchconfig.html
   # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/quickref-autoscaling.html
+  # https://www.omgubuntu.co.uk/how-to-install-docker-on-ubuntu-20-04
+  # https://acloudxpert.com/how-toinstall-docker-on-amazon-linux-ami/
+  # 
   # Connection via CLI: ssh -i <KEY_NAME>.pem ec2-user@<INSTANCE_IP>
   ###########################
   ApplicationLaunchConfig:
@@ -88,9 +109,7 @@ Resources:
           yum update -y
           yum install stress docker git -y
           service docker start
-          curl -L "https://github.com/docker/compose/releases/download/1.23.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/bin/docker-compose && sudo chmod +x /usr/bin/docker-compose
-
-
+          docker run --name wordpress -e WORDPRESS_DB_HOST=${RdsDbURL}:${RdsDbPORT} -e WORDPRESS_DB_USER=${DbUser} -e WORDPRESS_DB_PASSWORD=${DbPassword} -e WORDPRESS_DB_NAME=${DbName} -p 8080:80 -v "$PWD/wordpress":/var/www/html -d wordpress 
 
 Outputs:
 

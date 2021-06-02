@@ -28,7 +28,7 @@ Parameters:
       Type: "String"
       AllowedValues: 
         - "dev"
-        - "staging" --------------------------------------------------> What is "staging" ?
+        - "staging"
         - "prod"
       Default: "dev"
   KeyName:
@@ -165,6 +165,9 @@ Resources:
     Type: "AWS::CloudFormation::Stack"
     Properties:
       TemplateURL: !Sub "${TemplateURL}/network.yaml"
+      Tags:
+        - Key: Name
+          Value: Network Stack 
       Parameters:
         VpcCidrBlock: !Ref VpcCidrBlock
         ServerEnv: !Ref ServerEnv
@@ -176,6 +179,9 @@ Resources:
         Zone1: !Ref Zone1
         Zone2: !Ref Zone2
         Zone3: !Ref Zone3
+      Tags:
+        - Key: Name
+          Value: Network Stack   
 
   SecurityGroup:
     Type: "AWS::CloudFormation::Stack"
@@ -187,6 +193,9 @@ Resources:
         ServerEnv: !Ref ServerEnv
         VPC: !GetAtt "Network.Outputs.VPC"  
         MyIP: !Ref MyIP
+      Tags:
+        - Key: Name
+          Value: SecurityGroup Stack      
 
   IAM:
     Type: "AWS::CloudFormation::Stack"
@@ -196,6 +205,9 @@ Resources:
       TemplateURL: !Sub "${TemplateURL}/iam.yaml"
       Parameters:
         ServerEnv: !Ref ServerEnv
+      Tags:
+        - Key: Name
+          Value: IAM Stack      
 
   S3:
     Type: "AWS::CloudFormation::Stack"
@@ -205,7 +217,10 @@ Resources:
     Properties:
       TemplateURL: !Sub "${TemplateURL}/s3.yaml"
       Parameters:
-        ServerEnv: !Ref ServerEnv   
+        ServerEnv: !Ref ServerEnv  
+      Tags:
+        - Key: Name
+          Value: S3 Stack       
 
   RDS:
     Type: "AWS::CloudFormation::Stack"
@@ -227,6 +242,9 @@ Resources:
         PrivateSubnets: !GetAtt "Network.Outputs.PrivateSubnets"
         PrivateSubnet1: !GetAtt "Network.Outputs.PrivateSubnet1"
         PrivateSubnet2: !GetAtt "Network.Outputs.PrivateSubnet2"
+      Tags:
+        - Key: Name
+          Value: RDS Stack     
 
   LoadBalancer:
     Type: "AWS::CloudFormation::Stack" 
@@ -236,7 +254,10 @@ Resources:
         ServerEnv: !Ref ServerEnv
         VPC: !GetAtt "Network.Outputs.VPC" 
         EC2SG: !GetAtt "SecurityGroup.Outputs.EC2SG"
-        PublicSubnets: !GetAtt "Network.Outputs.PublicSubnets"   
+        PublicSubnets: !GetAtt "Network.Outputs.PublicSubnets" 
+      Tags:
+        - Key: Name
+          Value: LoadBalancer Stack        
 
   AutoScaling:
     Type: "AWS::CloudFormation::Stack" 
@@ -255,7 +276,16 @@ Resources:
           - !Ref InstanceType
           - Arch
         EC2SG: !GetAtt "SecurityGroup.Outputs.EC2SG"  
-        ALBTargetGroup: !GetAtt "LoadBalancer.Outputs.ALBTargetGroup" 
+        ALBTargetGroup: !GetAtt "LoadBalancer.Outputs.ALBTargetGroup"
+        RdsDbId: !GetAtt "RDS.Outputs.RdsDbId"
+        DbName: !GetAtt "RDS.Outputs.DbName"
+        RdsDbURL: !GetAtt "RDS.Outputs.RdsDbURL"
+        RdsDbPORT: !GetAtt "RDS.Outputs.RdsDbPORT"
+        DbUser: !GetAtt "RDS.Outputs.DbUser"
+        DbPassword: !GetAtt "RDS.Outputs.DbPassword"
+      Tags:
+        - Key: Name
+          Value: AutoScaling Stack       
 
   CloudWatch:
     Type: "AWS::CloudFormation::Stack"
@@ -269,24 +299,42 @@ Resources:
         ScaleUpPolicy: !GetAtt "AutoScaling.Outputs.ScaleUpPolicy"
         ScaleDownPolicy: !GetAtt "AutoScaling.Outputs.ScaleDownPolicy"
         SNSTopic: !GetAtt "SNS.Outputs.SNSTopic"
+      Tags:
+        - Key: Name
+          Value: CloudWatch Stack     
 
   SNS:
     Type: "AWS::CloudFormation::Stack"
     Properties:
-      TemplateURL: !Sub "${TemplateURL}/sns.yaml" 
+      TemplateURL: !Sub "${TemplateURL}/sns.yaml"
+      Tags:
+        - Key: Name
+          Value: SNS Stack       
 
 
-  ################### QUESTIONS POUR MENTORAT 27/05/2021 #############################
-  # 1) Si DB Master OUT, comment accéder au réplica ????
-  # 2) Les DBs c'est pour des backups ou c'est la DB de wordpress ??
-  # 3) Le stress test ne fonctionne pas sur les instances.........
-  # 4) adresse URL du site ? non-accessible....
-  # 5) Docker ou Docker-compose ? (Faire au plus simple) 
-  # 6) Pour le VPN côté AWS, ressource ? Amazon VPN ?
-  # 7) Côté on-premise: 2 serveurs Linux ou 1 serveur Linux plus un pfSense ??
-  # 8) CloudFront ?
-  # 9) Route53 ?
+  ################### QUESTIONS POUR MENTORAT 28/05/2021 #############################
+
+  ###################### WORDPRESS ########################
+  # I) IMPORTANT 
+  #   1) adresse URL du site ? non-accessible....
+  #   2) Combien de security groups (LoadBalancer-Intranet)--------------------------> 3 (EC2, RDS, Intranet)
+  #   3) Docker ou Docker-compose ? (Faire au plus simple) 
+  # II) AUTRES
+  #   1) Une AZ est totalement HS: comment en regénérer une autre ?
+  #   2) VPC Flow Logs sur S3 ? Analyse avec Glue et Athena ? Splunk ?
+  #   3) CloudFront ?
+  #   4) Route53 ?
+  #   5) ElastiCache ?
+  #   6) NACL------------------------------------------------------------------------> plus tard
+  ########################################################
+
   ####################################################################################
+
+  ##################### VPN ###############################
+  # I) IMPORTANT
+  #   1) Pour le VPN côté AWS, ressource ? Amazon VPN ?
+  #   2) Côté on-premise: 2 serveurs Linux ou 1 serveur Linux plus un pfSense ??
+  ########################################################
 
 
 

@@ -27,6 +27,8 @@ Resources:
   ApplicationLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
+      Type: application
+      Scheme: internet-facing
       Subnets: !Ref PublicSubnets
       SecurityGroups:
         - !Ref EC2SG
@@ -61,11 +63,6 @@ Resources:
     Properties:
       Port: 80
       Protocol: HTTP
-      HealthCheckPath: /
-      HealthCheckIntervalSeconds: 10
-      HealthCheckTimeoutSeconds: 5
-      HealthyThresholdCount: 2
-      UnhealthyThresholdCount: 2
       VpcId: !Ref VPC      
 
 Outputs: 
