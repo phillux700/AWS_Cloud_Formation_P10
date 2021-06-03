@@ -283,6 +283,7 @@ Resources:
         RdsDbPORT: !GetAtt "RDS.Outputs.RdsDbPORT"
         DbUser: !GetAtt "RDS.Outputs.DbUser"
         DbPassword: !GetAtt "RDS.Outputs.DbPassword"
+        ALBDNSName: !GetAtt "LoadBalancer.Outputs.ALBDNSName"
       Tags:
         - Key: Name
           Value: AutoScaling Stack       

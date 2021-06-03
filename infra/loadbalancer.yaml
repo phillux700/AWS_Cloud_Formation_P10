@@ -69,4 +69,8 @@ Outputs:
 
   ALBTargetGroup: 
     Description: "A reference to the target group"
-    Value: !Ref ALBTargetGroup        
+    Value: !Ref ALBTargetGroup    
+
+  ALBDNSName:
+    Description: "The URL of the Web Load Balancer"
+    Value: !GetAtt "ApplicationLoadBalancer.DNSName"      

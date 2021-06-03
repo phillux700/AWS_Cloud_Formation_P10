@@ -18,6 +18,6 @@ Resources:
   S3Bucket:
     Type: 'AWS::S3::Bucket'
     Properties:
-      BucketName: !Sub "${ServerEnv}-s3bucketp10"
+      BucketName: s3bucketp10
       AccessControl: PublicRead
    #DeletionPolicy: Retain

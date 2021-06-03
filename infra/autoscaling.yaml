@@ -43,6 +43,9 @@ Parameters:
   DbPassword:     
     Description: "RDS DB Password"
     Type: "String" 
+  ALBDNSName:
+    Description: "ALB DNS Name"
+    Type: "String" 
 
 Resources:
 
@@ -88,10 +91,32 @@ Resources:
   ###### DOCUMENTATION ######
   # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-as-launchconfig.html
   # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/quickref-autoscaling.html
-  # https://www.omgubuntu.co.uk/how-to-install-docker-on-ubuntu-20-04
-  # https://acloudxpert.com/how-toinstall-docker-on-amazon-linux-ami/
+  # https://hub.docker.com/r/conetix/wordpress-with-wp-cli/
   # 
   # Connection via CLI: ssh -i <KEY_NAME>.pem ec2-user@<INSTANCE_IP>
+  #
+  #
+  #
+  # J'ai testé
+  # curl -L "https://github.com/docker/compose/releases/download/1.23.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/bin/docker-compose && sudo chmod +x /usr/bin/docker-compose
+  # mkdir  ~/wordpress-compose && cd ~/wordpress-compose
+  # touch docker-compose.yml
+  # cat << EOF > docker-compose.yml
+  # wordpress:
+    # image: wordpress:latest
+    # environment:
+      # - WORDPRESS_DB_PASSWORD=${DbPassword}
+      # - WORDPRESS_DB_USER=${DbUser}
+      # - WORDPRESS_DB_HOST=${RdsDbURL}:${RdsDbPORT}
+      # - WORDPRESS_DB_NAME=${DbName}
+      # ports:
+        # - "8000:80"
+      # restart: always
+      # volumes:
+        #- ./html:/var/www/html
+  # EOF
+
+  # docker-compose up -d
   ###########################
   ApplicationLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
@@ -99,17 +124,50 @@ Resources:
       EbsOptimized: false
       KeyName: !Ref KeyName
       AssociatePublicIpAddress: true
-      ImageId: !Ref ImageId
+      ImageId: ami-035837f5f05288cef
       InstanceType: !Ref InstanceType
       SecurityGroups:
         - !Ref EC2SG
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
-          yum update -y
-          yum install stress docker git -y
-          service docker start
-          docker run --name wordpress -e WORDPRESS_DB_HOST=${RdsDbURL}:${RdsDbPORT} -e WORDPRESS_DB_USER=${DbUser} -e WORDPRESS_DB_PASSWORD=${DbPassword} -e WORDPRESS_DB_NAME=${DbName} -p 8080:80 -v "$PWD/wordpress":/var/www/html -d wordpress 
+          apt update
+          apt install stress docker.io -y
+          apt install apache2 php libapache2-mod-php mysql-server php-mysql -y
+          apt install php-curl php-gd php-intl php-json php-mbstring php-xml php-zip -y
+          cd /var/www/html
+          docker run --name wordpress -e WORDPRESS_DB_HOST=${RdsDbURL}:${RdsDbPORT} -e WORDPRESS_DB_USER=${DbUser} -e WORDPRESS_DB_PASSWORD=${DbPassword} WORDPRESS_DB_NAME=${DbName} -p 8080:80 -v "$PWD/":/var/www/html -d wordpress
+          mv index.html index2.html
+          docker exec wordpress curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          chmod +x wp-cli.phar
+          mv wp-cli.phar /usr/local/bin/wp
+          chmod 666 wp-config.php
+          wp config set DB_NAME \"${DbName}\"" --raw
+          wp config set DB_USER \"${DbUser}\" --raw
+          wp config set DB_PASSWORD \"${DbPassword}\" --raw
+          wp config set DB_HOST \"${RdsDbURL}\" --raw
+          wp config set WP_DEBUG true --raw
+          wp config set WP_DEBUG_LOG true --raw
+          wp core install --url=${ALBDNSName} --title=Projet10 --admin_user=admin --admin_password=password --admin_email=ptraon@gmail.com
+          wp config set FS_METHOD \"direct\" --raw  
+          wp config set AWS_ACCESS_KEY_ID \"ACCESSKEY\" --raw
+          wp config set AWS_SECRET_ACCESS_KEY \"SECRETKEY\" --raw
+          wp config set DISALLOW_FILE_MODS true --raw
+          wp config set WP_AUTO_UPDATE_CORE false --raw
+          echo "define( 'AS3CF_SETTINGS', serialize( array(
+            // Storage Provider ('aws', 'do', 'gcp')
+           'provider' => 'aws',
+           // Bucket to upload files to
+           'bucket' => 's3bucketp10',
+           // Automatically copy files to bucket on upload
+           'copy-to-s3' => true,
+           // Enable object prefix, useful if you use your bucket for other files
+           'enable-object-prefix' => true,
+           // Object prefix to use if 'enable-object-prefix' is 'true'
+           'object-prefix' => 'wp-content/uploads/',
+           // Rewrite file URLs to bucket
+           'serve-from-s3' => true,
+           ) ) );" >> wp-config.php
 
 Outputs:
 
