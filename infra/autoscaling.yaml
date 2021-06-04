@@ -91,7 +91,7 @@ Resources:
   ###### DOCUMENTATION ######
   # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-as-launchconfig.html
   # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/quickref-autoscaling.html
-  # https://hub.docker.com/r/conetix/wordpress-with-wp-cli/
+  # https://hub.docker.com/_/wordpress
   # 
   # Connection via CLI: ssh -i <KEY_NAME>.pem ec2-user@<INSTANCE_IP>
   #
@@ -139,37 +139,41 @@ Resources:
           systemctl start docker
           systemctl enable docker
           docker run --name wordpress -e WORDPRESS_DB_HOST=${RdsDbURL}:${RdsDbPORT} -e WORDPRESS_DB_USER=${DbUser} -e WORDPRESS_DB_PASSWORD=${DbPassword} -e WORDPRESS_DB_NAME=${DbName} -p 8080:80 -p 443:443 -v "$PWD/":/var/www/html -d wordpress
+          sleep 10
           mv index.html index2.html
           docker exec wordpress curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
           chmod +x wp-cli.phar
           mv wp-cli.phar /usr/local/bin/wp
-          chmod 666 wp-config.php
-          wp config set DB_NAME \"${DbName}\"" --raw
-          wp config set DB_USER \"${DbUser}\" --raw
-          wp config set DB_PASSWORD \"${DbPassword}\" --raw
-          wp config set DB_HOST \"${RdsDbURL}\" --raw
-          wp config set WP_DEBUG true --raw
-          wp config set WP_DEBUG_LOG true --raw
+          mv wp-config.php wp-config2.php
+          mv wp-config-sample.php wp-config.php
+          sed -i "s/database_name_here/${DbName}/g" wp-config.php
+          sed -i "s/username_here/${DbUser}/g" wp-config.php
+          sed -i "s/password_here/${DbPassword}/g" wp-config.php
+          sed -i "s/localhost/${RdsDbURL}/g" wp-config.php
+          sed -i "s/false/true/g" wp-config.php
+          chmod 666 wp-config.php   
+          chmod 777 wp-content
           wp core install --url=${ALBDNSName} --title=Projet10 --admin_user=admin --admin_password=password --admin_email=ptraon@gmail.com
-          wp config set FS_METHOD \"direct\" --raw  
-          wp config set AWS_ACCESS_KEY_ID \"ACCESSKEY\" --raw
-          wp config set AWS_SECRET_ACCESS_KEY \"SECRETKEY\" --raw
-          wp config set DISALLOW_FILE_MODS true --raw
-          wp config set WP_AUTO_UPDATE_CORE false --raw
-          echo "define( 'AS3CF_SETTINGS', serialize( array(
-            // Storage Provider ('aws', 'do', 'gcp')
-           'provider' => 'aws',
-           // Bucket to upload files to
-           'bucket' => 's3bucketp10',
-           // Automatically copy files to bucket on upload
-           'copy-to-s3' => true,
-           // Enable object prefix, useful if you use your bucket for other files
-           'enable-object-prefix' => true,
-           // Object prefix to use if 'enable-object-prefix' is 'true'
-           'object-prefix' => 'wp-content/uploads/',
-           // Rewrite file URLs to bucket
-           'serve-from-s3' => true,
-           ) ) );" >> wp-config.php
+          sleep 20
+        # wp config set FS_METHOD direct  
+        # wp config set AWS_ACCESS_KEY_ID ACCESSKEY 
+        # wp config set AWS_SECRET_ACCESS_KEY SECRETKEY 
+        # wp config set DISALLOW_FILE_MODS true --raw
+        # wp config set WP_AUTO_UPDATE_CORE false --raw
+        # echo "define( 'AS3CF_SETTINGS', serialize( array(
+        #  // Storage Provider ('aws', 'do', 'gcp')
+        # 'provider' => 'aws',
+        # // Bucket to upload files to
+        # 'bucket' => 's3bucketp10',
+        # // Automatically copy files to bucket on upload
+        # 'copy-to-s3' => true,
+        # // Enable object prefix, useful if you use your bucket for other files
+        # 'enable-object-prefix' => true,
+        # // Object prefix to use if 'enable-object-prefix' is 'true'
+        # 'object-prefix' => 'wp-content/uploads/',
+        # // Rewrite file URLs to bucket
+        # 'serve-from-s3' => true,
+        # ) ) );" >> wp-config.php
 
 Outputs:
 
