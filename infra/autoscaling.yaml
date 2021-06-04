@@ -138,7 +138,7 @@ Resources:
           cd /var/www/html
           systemctl start docker
           systemctl enable docker
-          docker run --name wordpress -e WORDPRESS_DB_HOST=${RdsDbURL}:${RdsDbPORT} -e WORDPRESS_DB_USER=${DbUser} -e WORDPRESS_DB_PASSWORD=${DbPassword} WORDPRESS_DB_NAME=${DbName} -p 8080:80 -v "$PWD/":/var/www/html -d wordpress
+          docker run --name wordpress -e WORDPRESS_DB_HOST=${RdsDbURL}:${RdsDbPORT} -e WORDPRESS_DB_USER=${DbUser} -e WORDPRESS_DB_PASSWORD=${DbPassword} -e WORDPRESS_DB_NAME=${DbName} -p 8080:80 -p 443:443 -v "$PWD/":/var/www/html -d wordpress
           mv index.html index2.html
           docker exec wordpress curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
           chmod +x wp-cli.phar
