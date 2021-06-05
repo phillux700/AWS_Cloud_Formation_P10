@@ -46,6 +46,18 @@ Parameters:
   ALBDNSName:
     Description: "ALB DNS Name"
     Type: "String" 
+  AccessKeyID: 
+    Description: "Access Key Id for S3 Bucket"
+    Type: "String"
+  SecretAccessKey: 
+    Description: "Secret Key Id for S3 Bucket"
+    Type: "String"
+  BucketName: 
+    Description: "Bucket Name"
+    Type: "String"
+  User:   
+    Description: "User Name"
+    Type: "String"
 
 Resources:
 
@@ -138,42 +150,22 @@ Resources:
           cd /var/www/html
           systemctl start docker
           systemctl enable docker
-          docker run --name wordpress -e WORDPRESS_DB_HOST=${RdsDbURL}:${RdsDbPORT} -e WORDPRESS_DB_USER=${DbUser} -e WORDPRESS_DB_PASSWORD=${DbPassword} -e WORDPRESS_DB_NAME=${DbName} -p 8080:80 -p 443:443 -v "$PWD/":/var/www/html -d wordpress
+          docker run --name wordpress -e WORDPRESS_DB_HOST=${RdsDbURL}:${RdsDbPORT} -e WORDPRESS_DB_USER=${DbUser} -e WORDPRESS_DB_PASSWORD=${DbPassword} -e WORDPRESS_DB_NAME=${DbName} -p 8080:80 -p 443:443 -v "$PWD/":/var/www/html -d conetix/wordpress-with-wp-cli
           sleep 10
           mv index.html index2.html
-          docker exec wordpress curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-          chmod +x wp-cli.phar
-          mv wp-cli.phar /usr/local/bin/wp
-          mv wp-config.php wp-config2.php
-          mv wp-config-sample.php wp-config.php
-          sed -i "s/database_name_here/${DbName}/g" wp-config.php
-          sed -i "s/username_here/${DbUser}/g" wp-config.php
-          sed -i "s/password_here/${DbPassword}/g" wp-config.php
-          sed -i "s/localhost/${RdsDbURL}/g" wp-config.php
-          sed -i "s/false/true/g" wp-config.php
-          chmod 666 wp-config.php   
-          chmod 777 wp-content
-          wp core install --url=${ALBDNSName} --title=Projet10 --admin_user=admin --admin_password=password --admin_email=ptraon@gmail.com
-          sleep 20
-        # wp config set FS_METHOD direct  
-        # wp config set AWS_ACCESS_KEY_ID ACCESSKEY 
-        # wp config set AWS_SECRET_ACCESS_KEY SECRETKEY 
-        # wp config set DISALLOW_FILE_MODS true --raw
-        # wp config set WP_AUTO_UPDATE_CORE false --raw
-        # echo "define( 'AS3CF_SETTINGS', serialize( array(
-        #  // Storage Provider ('aws', 'do', 'gcp')
-        # 'provider' => 'aws',
-        # // Bucket to upload files to
-        # 'bucket' => 's3bucketp10',
-        # // Automatically copy files to bucket on upload
-        # 'copy-to-s3' => true,
-        # // Enable object prefix, useful if you use your bucket for other files
-        # 'enable-object-prefix' => true,
-        # // Object prefix to use if 'enable-object-prefix' is 'true'
-        # 'object-prefix' => 'wp-content/uploads/',
-        # // Rewrite file URLs to bucket
-        # 'serve-from-s3' => true,
-        # ) ) );" >> wp-config.php
+          rm wp-config.php
+          docker exec wordpress wp core config --dbname=${DbName} --dbuser=${DbUser} --dbpass=${DbPassword} --dbprefix=wp_ --dbhost=${RdsDbURL}
+          docker exec wordpress wp core install --url=${ALBDNSName} --title=Projet10 --admin_user=admin --admin_password='password' --admin_email=ptraon@gmail.com
+          chmod 666 wp-config.php
+          docker exec wordpress wp theme install quark
+          docker exec wordpress wp theme activate quark
+          docker exec wordpress wp plugin install amazon-s3-and-cloudfront --activate
+          docker exec wordpress wp config set FS_METHOD direct  
+          docker exec wordpress wp config set AWS_ACCESS_KEY_ID ${AccessKeyID}
+          docker exec wordpress wp config set AWS_SECRET_ACCESS_KEY ${SecretAccessKey} 
+          docker exec wordpress wp config set DISALLOW_FILE_MODS true --raw
+          docker exec wordpress wp config set WP_AUTO_UPDATE_CORE false --raw
+          sed -i '71i define( "AS3CF_SETTINGS", serialize( array("provider" => "aws","bucket" => "s3bucketp10","copy-to-s3" => true,"enable-object-prefix" => true,"object-prefix" => "wp-content/uploads/","serve-from-s3" => true,) ) );' wp-config.php
 
 Outputs:
 

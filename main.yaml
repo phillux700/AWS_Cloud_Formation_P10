@@ -197,30 +197,26 @@ Resources:
         - Key: Name
           Value: SecurityGroup Stack      
 
-  IAM:
-    Type: "AWS::CloudFormation::Stack"
-    DependsOn: 
-      - Network
-    Properties:
-      TemplateURL: !Sub "${TemplateURL}/iam.yaml"
-      Parameters:
-        ServerEnv: !Ref ServerEnv
-      Tags:
-        - Key: Name
-          Value: IAM Stack      
+  # IAM:
+  #  Type: "AWS::CloudFormation::Stack"
+  #  DependsOn: 
+  #    - Network
+  #  Properties:
+  #    TemplateURL: !Sub "${TemplateURL}/iam.yaml"
+  #    Parameters:
+  #      ServerEnv: !Ref ServerEnv
+  #    Tags:
+  #      - Key: Name
+  #        Value: IAM Stack      
 
   S3:
     Type: "AWS::CloudFormation::Stack"
     DependsOn: 
       - Network
-      - IAM
     Properties:
       TemplateURL: !Sub "${TemplateURL}/s3.yaml"
       Parameters:
-        ServerEnv: !Ref ServerEnv  
-      Tags:
-        - Key: Name
-          Value: S3 Stack       
+        ServerEnv: !Ref ServerEnv       
 
   RDS:
     Type: "AWS::CloudFormation::Stack"
@@ -284,6 +280,10 @@ Resources:
         DbUser: !GetAtt "RDS.Outputs.DbUser"
         DbPassword: !GetAtt "RDS.Outputs.DbPassword"
         ALBDNSName: !GetAtt "LoadBalancer.Outputs.ALBDNSName"
+        AccessKeyID: !GetAtt "S3.Outputs.AccessKeyID"
+        SecretAccessKey: !GetAtt "S3.Outputs.SecretAccessKey"
+        BucketName: !GetAtt "S3.Outputs.BucketName"
+        User: !GetAtt "S3.Outputs.User"
       Tags:
         - Key: Name
           Value: AutoScaling Stack       
@@ -317,7 +317,6 @@ Resources:
 
   ###################### WORDPRESS ########################
   # I) IMPORTANT 
-  #   1) adresse URL du site ? non-accessible....
   #   2) Combien de security groups (LoadBalancer-Intranet)--------------------------> 3 (EC2, RDS, Intranet)
   #   3) Docker ou Docker-compose ? (Faire au plus simple) 
   # II) AUTRES
