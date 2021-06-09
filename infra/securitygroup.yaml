@@ -13,6 +13,9 @@ Parameters:
   MyIP:
     Description: "My own IP."
     Type: "String" 
+  IPtoAllow:
+    Description: "IP to allow."
+    Type: "String"   
 
 Resources:
 
@@ -23,6 +26,7 @@ Resources:
   # https://docs.aws.amazon.com/vpc/latest/userguide/VPC_SecurityGroups.html
   # https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Security.html#VPC_Security_Comparison
   # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-security-groups.html
+  # https://www.javatpoint.com/aws-nacl-vs-security-group
   ###########################
 
   EC2SG:
@@ -63,12 +67,31 @@ Resources:
           SourceSecurityGroupId: !Ref EC2SG
       Tags:
         - Key: Name
-          Value: RDSSG
+          Value: RDSSG      
 
-  ######################################################################
-  # 1 Seul groupe de sécurité pour la partie VPN ?
-  ######################################################################      
-
+  VPNSG:
+    Type: AWS::EC2::SecurityGroup
+    DependsOn:
+      - IntranetSG
+    Properties:
+      GroupDescription: >-
+        Enable All traffic from VPN server IP
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          CidrIp: !Ref IPtoAllow
+        - IpProtocol: -1
+          SourceSecurityGroupId: !Ref IntranetSG
+      VpcId: !Ref VPC10
+      
+  IntranetSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: >-
+        Allow all traffic
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref VPC10     
 
 Outputs:
 
@@ -80,5 +103,13 @@ Outputs:
     Description: "A reference to the security group for RDS"
     Value: !Ref "RDSSG"
     Export:
-      Name: !Sub "${ServerEnv}-RDSSG"          
+      Name: !Sub "${ServerEnv}-RDSSG"      
+
+  VPNSG: 
+    Description: "A reference to the security group for VPN"
+    Value: !Ref "VPNSG"        
+
+  IntranetSG: 
+    Description: "A reference to the security group for Intranet"
+    Value: !Ref "IntranetSG"  
              

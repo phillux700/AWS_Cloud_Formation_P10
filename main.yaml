@@ -14,9 +14,6 @@ Description: >
         - A CloudWatch Alarm and a SNS notification.
 
     2) an intranet through a VPN connection.
-        #########################################################
-        ###################### FILL IN ########################## 
-        #########################################################
 
     Author: Philippe Traon <ptraon@pm.me>
 
@@ -136,6 +133,11 @@ Parameters:
       Description: "Enter an existing S3 Cloudformation Bucket."
       Type: "String"
       Default: "https://p10aws.s3-eu-west-1.amazonaws.com/infra"
+  IPtoAllow:
+    NoEcho: 'true'
+    Description: "IP to connect via VPN" 
+    Type: String
+    Default: 'XX.XX.XX.XX/24'
 
 Mappings:
   AWSInstanceType2Arch:
@@ -173,6 +175,7 @@ Resources:
         ServerEnv: !Ref ServerEnv
         PublicSubnet1CIDR: !Ref PublicSubnet1CIDR
         PublicSubnet2CIDR: !Ref PublicSubnet2CIDR
+        PublicSubnet3CIDR: !Ref PublicSubnet3CIDR
         PrivateSubnet1CIDR: !Ref PrivateSubnet1CIDR
         PrivateSubnet2CIDR: !Ref PrivateSubnet2CIDR
         PrivateSubnet3CIDR: !Ref PrivateSubnet3CIDR
@@ -193,21 +196,10 @@ Resources:
         ServerEnv: !Ref ServerEnv
         VPC: !GetAtt "Network.Outputs.VPC"  
         MyIP: !Ref MyIP
+        IPtoAllow: !Ref IPtoAllow
       Tags:
         - Key: Name
-          Value: SecurityGroup Stack      
-
-  # IAM:
-  #  Type: "AWS::CloudFormation::Stack"
-  #  DependsOn: 
-  #    - Network
-  #  Properties:
-  #    TemplateURL: !Sub "${TemplateURL}/iam.yaml"
-  #    Parameters:
-  #      ServerEnv: !Ref ServerEnv
-  #    Tags:
-  #      - Key: Name
-  #        Value: IAM Stack      
+          Value: SecurityGroup Stack        
 
   S3:
     Type: "AWS::CloudFormation::Stack"
@@ -302,7 +294,23 @@ Resources:
         SNSTopic: !GetAtt "SNS.Outputs.SNSTopic"
       Tags:
         - Key: Name
-          Value: CloudWatch Stack     
+          Value: CloudWatch Stack   
+
+  VPNIntranet:
+    Type: "AWS::CloudFormation::Stack"  
+    Properties:
+      TemplateURL: !Sub "${TemplateURL}/vpn_intranet.yaml"  
+      Parameters:
+        ServerEnv: !Ref ServerEnv
+        KeyName: !Ref KeyName
+        InstanceType: !Ref InstanceType
+        VPNSG: !GetAtt "SecurityGroup.Outputs.VPNSG"  
+        IntranetSG: !GetAtt "SecurityGroup.Outputs.IntranetSG" 
+        PublicSubnet3: !GetAtt "Network.Outputs.PublicSubnet3"
+        PrivateSubnet3: !GetAtt "Network.Outputs.PublicSubnet3"
+      Tags:
+        - Key: Name
+          Value: VPN and Intranet Stack      
 
   SNS:
     Type: "AWS::CloudFormation::Stack"
@@ -311,30 +319,6 @@ Resources:
       Tags:
         - Key: Name
           Value: SNS Stack       
-
-
-  ################### QUESTIONS POUR MENTORAT 28/05/2021 #############################
-
-  ###################### WORDPRESS ########################
-  # I) IMPORTANT 
-  #   2) Combien de security groups (LoadBalancer-Intranet)--------------------------> 3 (EC2, RDS, Intranet)
-  #   3) Docker ou Docker-compose ? (Faire au plus simple) 
-  # II) AUTRES
-  #   1) Une AZ est totalement HS: comment en regénérer une autre ?
-  #   2) VPC Flow Logs sur S3 ? Analyse avec Glue et Athena ? Splunk ?
-  #   3) CloudFront ?
-  #   4) Route53 ?
-  #   5) ElastiCache ?
-  #   6) NACL------------------------------------------------------------------------> plus tard
-  ########################################################
-
-  ####################################################################################
-
-  ##################### VPN ###############################
-  # I) IMPORTANT
-  #   1) Pour le VPN côté AWS, ressource ? Amazon VPN ?
-  #   2) Côté on-premise: 2 serveurs Linux ou 1 serveur Linux plus un pfSense ??
-  ########################################################
 
 
 

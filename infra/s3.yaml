@@ -19,7 +19,7 @@ Resources:
     Type: 'AWS::S3::Bucket'
     Properties:
       BucketName: s3bucketp10
-      # AccessControl: PublicRead
+      #AccessControl: PublicRead
    #DeletionPolicy: Retain
 
   ###### DOCUMENTATION ######
@@ -27,22 +27,22 @@ Resources:
   # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/quickref-iam.html#scenario-iam-user
   ###########################    
   S3User:
-    Type: 'AWS::IAM::User'
-    Properties:
-      Policies:
-        - PolicyName: bucket-access
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-            - Effect: Allow
-              Action:
-              - s3:*
-              Resource: "*" 
+   Type: 'AWS::IAM::User'
+   Properties:
+     Policies:
+       - PolicyName: bucket-access
+         PolicyDocument:
+           Version: '2012-10-17'
+           Statement:
+           - Effect: Allow
+             Action:
+             - s3:*
+             Resource: "*" 
 
   S3UserAccessKey:
-    Type: AWS::IAM::AccessKey
-    Properties:
-      UserName: !Ref S3User 
+   Type: AWS::IAM::AccessKey
+   Properties:
+     UserName: !Ref S3User 
 
 Outputs:
   AccessKeyID:

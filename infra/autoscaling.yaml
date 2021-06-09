@@ -103,30 +103,12 @@ Resources:
   ###### DOCUMENTATION ######
   # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-as-launchconfig.html
   # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/quickref-autoscaling.html
-  # https://hub.docker.com/_/wordpress
+  # https://openclassrooms.com/fr/courses/2035766-optimisez-votre-deploiement-en-creant-des-conteneurs-avec-docker
+  # https://hub.docker.com/r/conetix/wordpress-with-wp-cli/
+  # https://developer.wordpress.org/cli/commands/core/install/
+  # https://kinsta.com/fr/base-de-connaissances/amazon-s3-wordpress/
   # 
-  # Connection via CLI: ssh -i <KEY_NAME>.pem ec2-user@<INSTANCE_IP>
-  #
-  #
-  #
-  # J'ai testé
-  # curl -L "https://github.com/docker/compose/releases/download/1.23.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/bin/docker-compose && sudo chmod +x /usr/bin/docker-compose
-  # mkdir  ~/wordpress-compose && cd ~/wordpress-compose
-  # touch docker-compose.yml
-  # cat << EOF > docker-compose.yml
-  # wordpress:
-    # image: wordpress:latest
-    # environment:
-      # - WORDPRESS_DB_PASSWORD=${DbPassword}
-      # - WORDPRESS_DB_USER=${DbUser}
-      # - WORDPRESS_DB_HOST=${RdsDbURL}:${RdsDbPORT}
-      # - WORDPRESS_DB_NAME=${DbName}
-      # ports:
-        # - "8000:80"
-      # restart: always
-      # volumes:
-        #- ./html:/var/www/html
-  # EOF
+  # Connection via CLI: ssh -i <KEY_NAME>.pem ubuntu@<INSTANCE_IP>
 
   # docker-compose up -d
   ###########################
@@ -145,27 +127,22 @@ Resources:
           #!/bin/bash
           apt update
           apt install stress docker.io -y
-          apt install apache2 php libapache2-mod-php mysql-server php-mysql -y
-          apt install php-curl php-gd php-intl php-json php-mbstring php-xml php-zip -y
-          cd /var/www/html
           systemctl start docker
           systemctl enable docker
-          docker run --name wordpress -e WORDPRESS_DB_HOST=${RdsDbURL}:${RdsDbPORT} -e WORDPRESS_DB_USER=${DbUser} -e WORDPRESS_DB_PASSWORD=${DbPassword} -e WORDPRESS_DB_NAME=${DbName} -p 8080:80 -p 443:443 -v "$PWD/":/var/www/html -d conetix/wordpress-with-wp-cli
+          cd /var
+          mkdir www 
+          cd www
+          mkdir html
+          cd html
+          docker run --name wordpress -e WORDPRESS_DB_HOST=${RdsDbURL}:${RdsDbPORT} -e WORDPRESS_DB_USER=${DbUser} -e WORDPRESS_DB_PASSWORD=${DbPassword} -e WORDPRESS_DB_NAME=${DbName} -p 80:80 -p 443:443 -v `pwd`:`pwd` -w `pwd` -d conetix/wordpress-with-wp-cli
           sleep 10
-          mv index.html index2.html
-          rm wp-config.php
           docker exec wordpress wp core config --dbname=${DbName} --dbuser=${DbUser} --dbpass=${DbPassword} --dbprefix=wp_ --dbhost=${RdsDbURL}
-          docker exec wordpress wp core install --url=${ALBDNSName} --title=Projet10 --admin_user=admin --admin_password='password' --admin_email=ptraon@gmail.com
           chmod 666 wp-config.php
+          sed -i "20i\define( 'AS3CF_SETTINGS', serialize( array('provider' => 'aws','bucket' => 's3bucketp10','access-key-id' => '${AccessKeyID}','secret-access-key' => '${SecretAccessKey}','copy-to-s3' => true,'enable-object-prefix' => true,'object-prefix' => 'wp-content/uploads/','serve-from-s3' => true )));" wp-config.php
+          docker exec wordpress wp core install --url=${ALBDNSName} --title=Projet10 --admin_user=admin --admin_password='password' --admin_email=ptraon@gmail.com
           docker exec wordpress wp theme install quark
           docker exec wordpress wp theme activate quark
           docker exec wordpress wp plugin install amazon-s3-and-cloudfront --activate
-          docker exec wordpress wp config set FS_METHOD direct  
-          docker exec wordpress wp config set AWS_ACCESS_KEY_ID ${AccessKeyID}
-          docker exec wordpress wp config set AWS_SECRET_ACCESS_KEY ${SecretAccessKey} 
-          docker exec wordpress wp config set DISALLOW_FILE_MODS true --raw
-          docker exec wordpress wp config set WP_AUTO_UPDATE_CORE false --raw
-          sed -i '71i define( "AS3CF_SETTINGS", serialize( array("provider" => "aws","bucket" => "s3bucketp10","copy-to-s3" => true,"enable-object-prefix" => true,"object-prefix" => "wp-content/uploads/","serve-from-s3" => true,) ) );' wp-config.php
 
 Outputs:
 
