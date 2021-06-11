@@ -17,6 +17,9 @@ Parameters:
   PublicSubnet2CIDR:
     Description: IP range for the public subnet in the second Availability Zone
     Type: String
+  PublicSubnet3CIDR:
+    Description: IP range for the public subnet in the second Availability Zone
+    Type: String  
   PrivateSubnet1CIDR:
     Description: IP range for the private subnet in the first Availability Zone
     Type: String
@@ -79,7 +82,7 @@ Resources:
   PublicSubnet3:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref VPC11
+      VpcId: !Ref VPC10
       AvailabilityZone: !Ref Zone3
       CidrBlock: !Ref PublicSubnet3CIDR
       Tags:
@@ -206,7 +209,7 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       RouteTableId: !Ref PublicRouteTable2
   PublicRoute3:
-    Type: 'AWS::EC2::Route'
+    Type: AWS::EC2::Route
     Properties:
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref InternetGateway
@@ -229,7 +232,7 @@ Resources:
       RouteTableId: !Ref PublicRouteTable2
       SubnetId: !Ref PublicSubnet2 
   AttachPublicRouteTable3:
-    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref PublicSubnet3
       RouteTableId: !Ref PublicRouteTable3    
@@ -245,7 +248,7 @@ Resources:
       RouteTableId: !Ref PrivateRouteTable2
       SubnetId: !Ref PrivateSubnet2 
   AttachPrivateRouteTable3:
-    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: !Ref PrivateRouteTable3
       SubnetId: !Ref PrivateSubnet3    
@@ -279,7 +282,9 @@ Resources:
   # Pré-requis: un sous-réseau, une IP élastique, une passerelle internet attachée au VPC.
   ###########################     
   NatGateway1:
-    DependsOn: AttachInternetGateway
+    DependsOn: 
+      - AttachInternetGateway
+      - NatEip1
     Type: AWS::EC2::NatGateway
     Properties:
       AllocationId: !GetAtt NatEip1.AllocationId
@@ -288,7 +293,9 @@ Resources:
         - Key: Name
           Value: VPC10-nat-a (AZ A)
   NatGateway2:
-    DependsOn: AttachInternetGateway
+    DependsOn: 
+      - AttachInternetGateway
+      - NatEip2
     Type: AWS::EC2::NatGateway
     Properties:
       AllocationId: !GetAtt NatEip2.AllocationId
@@ -297,7 +304,9 @@ Resources:
         - Key: Name
           Value: VPC10-nat-b (AZ B) 
   NatGateway3:
-    DependsOn: AttachInternetGatewayVPN
+    DependsOn: 
+      - AttachInternetGateway
+      - NatEip3
     Type: AWS::EC2::NatGateway
     Properties:
       AllocationId: !GetAtt NatEip3.AllocationId
@@ -312,23 +321,26 @@ Resources:
   # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-route.html
   ###########################                     
   NatPrivateRoute1:
+    DependsOn: NatGateway1
     Type: AWS::EC2::Route
     Properties:
       RouteTableId: !Ref PrivateRouteTable1
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId: !Ref NatGateway1
   NatPrivateRoute2:
+    DependsOn: NatGateway2
     Type: AWS::EC2::Route
     Properties:
       RouteTableId: !Ref PrivateRouteTable2
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId: !Ref NatGateway2    
   NatPrivateRoute3:
-    Type: 'AWS::EC2::Route'
+    DependsOn: NatGateway3  
+    Type: AWS::EC2::Route
     Properties:
-      DestinationCidrBlock: 0.0.0.0/0
       RouteTableId: !Ref PrivateRouteTable3
-      InstanceId: !Ref NatGateway3       
+      DestinationCidrBlock: 0.0.0.0/0 
+      NatGatewayId: !Ref NatGateway3       
 
 Outputs: 
 

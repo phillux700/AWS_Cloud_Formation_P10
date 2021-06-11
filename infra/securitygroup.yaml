@@ -78,10 +78,10 @@ Resources:
         Enable All traffic from VPN server IP
       SecurityGroupIngress:
         - IpProtocol: -1
-          CidrIp: !Ref IPtoAllow
+          CidrIp: 82.65.71.42/24
         - IpProtocol: -1
           SourceSecurityGroupId: !Ref IntranetSG
-      VpcId: !Ref VPC10
+      VpcId: !Ref VPC
       
   IntranetSG:
     Type: AWS::EC2::SecurityGroup
@@ -91,7 +91,7 @@ Resources:
       SecurityGroupIngress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
-      VpcId: !Ref VPC10     
+      VpcId: !Ref VPC    
 
 Outputs:
 

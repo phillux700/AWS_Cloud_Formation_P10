@@ -45,6 +45,10 @@ Parameters:
     Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
     Type: String
     Default: 10.0.1.0/24
+  PublicSubnet3CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
+    Type: String
+    Default: 10.0.2.0/24
   PrivateSubnet1CIDR:
     Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
     Type: String
@@ -138,6 +142,11 @@ Parameters:
     Description: "IP to connect via VPN" 
     Type: String
     Default: 'XX.XX.XX.XX/24'
+  VolumeName:
+    Description: The name to be used for the EFS volume
+    Type: String
+    MinLength: '1'
+    Default: myEFSvolume  
 
 Mappings:
   AWSInstanceType2Arch:
@@ -276,6 +285,10 @@ Resources:
         SecretAccessKey: !GetAtt "S3.Outputs.SecretAccessKey"
         BucketName: !GetAtt "S3.Outputs.BucketName"
         User: !GetAtt "S3.Outputs.User"
+        PublicSubnet1: !GetAtt "Network.Outputs.PublicSubnet1"
+        PublicSubnet2: !GetAtt "Network.Outputs.PublicSubnet2"
+        VPC: !GetAtt "Network.Outputs.VPC"
+        VolumeName: !Ref VolumeName
       Tags:
         - Key: Name
           Value: AutoScaling Stack       
@@ -308,6 +321,8 @@ Resources:
         IntranetSG: !GetAtt "SecurityGroup.Outputs.IntranetSG" 
         PublicSubnet3: !GetAtt "Network.Outputs.PublicSubnet3"
         PrivateSubnet3: !GetAtt "Network.Outputs.PublicSubnet3"
+        IPtoAllow: !Ref IPtoAllow
+        MyIP: !Ref MyIP
       Tags:
         - Key: Name
           Value: VPN and Intranet Stack      
@@ -318,7 +333,13 @@ Resources:
       TemplateURL: !Sub "${TemplateURL}/sns.yaml"
       Tags:
         - Key: Name
-          Value: SNS Stack       
+          Value: SNS Stack      
+
+Outputs: 
+
+  DNSLoadBalancer: 
+    Description: "Dns loadbalancer"
+    Value: !GetAtt "LoadBalancer.Outputs.ALBDNSName"          
 
 
 

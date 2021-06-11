@@ -4,6 +4,9 @@ Description: >
     This template creates the EC2 instances and manages the scaling. 
     Author: Philippe Traon <ptraon@pm.me>
 Parameters:
+  VPC:
+    Description: VPC 
+    Type: "AWS::EC2::VPC::Id"
   ServerEnv:
     Description: "Server Environment name."
     Type: "String"  
@@ -12,7 +15,13 @@ Parameters:
     Type: "String"  
   PublicSubnets:
     Description: "Subnets to launch instances into"
-    Type: "List<AWS::EC2::Subnet::Id>"  
+    Type: "List<AWS::EC2::Subnet::Id>" 
+  PublicSubnet1:
+    Description: "Public Subnet 1"
+    Type: "String"
+  PublicSubnet2:
+    Description: "Public Subnet 2"
+    Type: "String"   
   InstanceType:
     Description: "The type of ec2 instance"
     Type: "String"  
@@ -58,8 +67,65 @@ Parameters:
   User:   
     Description: "User Name"
     Type: "String"
+  VolumeName:  
+    Description: "Volume EFS name"
+    Type: "String" 
 
 Resources:
+
+  ################################### STOCKAGE EFS #######################################################
+
+  ###### DOCUMENTATION ######
+  # https://docs.aws.amazon.com/fr_fr/AWSCloudFormation/latest/UserGuide/quickref-efs.html
+  ###########################
+  MountTargetSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: Security group for mount target
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '2049'
+        ToPort: '2049'
+        CidrIp: 0.0.0.0/0
+  ## Création du service EFS      
+  EFSFileSystem:
+    Type: AWS::EFS::FileSystem
+    Properties:
+      PerformanceMode: generalPurpose
+      BackupPolicy:
+        Status: DISABLED
+      Encrypted: false
+      LifecyclePolicies:
+        - TransitionToIA: AFTER_60_DAYS
+      ThroughputMode: bursting
+      FileSystemTags:
+      - Key: Name
+        Value:
+          Ref: VolumeName
+  ## Création de la target de montage pour le public subnet 1
+  MountTarget1:
+    Type: AWS::EFS::MountTarget
+    DependsOn: 
+      - EFSFileSystem
+      - MountTargetSecurityGroup
+    Properties:
+      FileSystemId: !Ref EFSFileSystem
+      SubnetId: !Ref PublicSubnet1
+      SecurityGroups: 
+        - !Ref MountTargetSecurityGroup
+
+  ## Création de la target de montage pour le public subnet 2
+  MountTarget2:
+    Type: AWS::EFS::MountTarget
+    DependsOn: 
+      - EFSFileSystem
+      - MountTargetSecurityGroup
+    Properties:
+      FileSystemId: !Ref EFSFileSystem
+      SubnetId: !Ref PublicSubnet2
+      SecurityGroups: 
+        - !Ref MountTargetSecurityGroup
 
   ################################### SCALING GROUP #######################################################
 
@@ -107,6 +173,7 @@ Resources:
   # https://hub.docker.com/r/conetix/wordpress-with-wp-cli/
   # https://developer.wordpress.org/cli/commands/core/install/
   # https://kinsta.com/fr/base-de-connaissances/amazon-s3-wordpress/
+  # https://docs.aws.amazon.com/efs/latest/ug/installing-amazon-efs-utils.html#installing-other-distro
   # 
   # Connection via CLI: ssh -i <KEY_NAME>.pem ubuntu@<INSTANCE_IP>
 
@@ -114,6 +181,8 @@ Resources:
   ###########################
   ApplicationLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
+    DependsOn: 
+      - EFSFileSystem
     Properties:
       EbsOptimized: false
       KeyName: !Ref KeyName
@@ -143,7 +212,25 @@ Resources:
           docker exec wordpress wp theme install quark
           docker exec wordpress wp theme activate quark
           docker exec wordpress wp plugin install amazon-s3-and-cloudfront --activate
+          apt -y install git binutils
+          cd /root/
+          git clone https://github.com/aws/efs-utils
+          cd efs-utils
+          ./build-deb.sh
+          apt -y install ./build/amazon-efs-utils*deb
+          mkdir /wp_data
+          cat << EOF >> /etc/fstab
+          ${EFSFileSystem}:/ /wp_data efs
+              _netdev,noresvport,tls 0 0
+          EOF    
+          mount /wp_data 
+          sleep 20
+        # mount -t efs -o tls ${EFSFileSystem}:/ efs
+        # sleep 20
+        # mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport ${EFSFileSystem}.efs.eu-west-1.amazonaws.com:/ efs
+        # sleep 20   
 
+        
 Outputs:
 
   ScalingGroup: 
@@ -156,4 +243,14 @@ Outputs:
 
   ScaleDownPolicy: 
     Description: "Auto Scaling Down Policy Reference ID"
-    Value: !Ref "ScaleDownPolicy"             
+    Value: !Ref "ScaleDownPolicy"      
+
+  MountTargetID1:
+    Description: Mount target ID 1
+    Value: !Ref MountTarget1
+  MountTargetID2:
+    Description: Mount target ID 2
+    Value: !Ref MountTarget2    
+  FileSystemID2:
+    Description: File system ID
+    Value: !Ref EFSFileSystem         

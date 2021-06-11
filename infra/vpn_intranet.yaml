@@ -4,9 +4,6 @@ Description: >
     This template creates Intranet and VPN vai EC2 Instance. 
     Author: Philippe Traon <ptraon@pm.me>
 Parameters:
-  VPC:
-    Description: VPC 
-    Type: "AWS::EC2::VPC::Id"
   ServerEnv:
     Description: "Server Environment name."
     Type: "String"  
@@ -24,21 +21,33 @@ Parameters:
     Type: "String"   
   PublicSubnet3:
     Description: "Public subnet 3"
-    Type: "AWS::EC2::Subnet::Id" 
+    Type: "String"
   PrivateSubnet3:
     Description: "Private subnet 3"
-    Type: "List<AWS::EC2::Subnet::Id>"     
+    Type: "String"  
+  VPNSG:
+    Description: "VPN Security Group"
+    Type: "AWS::EC2::SecurityGroup::Id" 
+  IntranetSG:
+    Description: "Intranet Security Group"
+    Type: "AWS::EC2::SecurityGroup::Id"       
 
 Resources:
+
+  ################################### VPN ###################################################
+
+  ###### DOCUMENTATION ######
+  # https://www.networkreverse.com/2020/06/how-to-build-linux-router-with-ubuntu.html
+  ###########################
   VPNInstance:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: !Ref InstanceType
       SourceDestCheck: false
-      KeyName: !Ref SSHKeyName
+      KeyName: !Ref KeyName
       SubnetId: !Ref PublicSubnet3
       SecurityGroupIds: 
-       - !GetAtt VPNCSG.GroupId
+       - !Ref VPNSG
       UserData:
         !Base64
           Fn::Sub: |
@@ -47,11 +56,11 @@ Resources:
             apt install openvpn -y
             sudo sysctl -w net.ipv4.ip_forward=1
           # echo 1 > /proc/sys/net/ipv4/ip_forward
-            # masquerade persistent install
+          # masquerade persistent install
       ImageId: ami-035837f5f05288cef
       Tags:
       - Key: Name
-        Value: !Sub '{ServerEnv}-OpenVPN'
+        Value: !Sub '${ServerEnv}-OpenVPN'
 
   IntranetInstance:
     Type: AWS::EC2::Instance
@@ -60,16 +69,15 @@ Resources:
       KeyName: !Ref KeyName
       SubnetId: !Ref PrivateSubnet3
       SecurityGroupIds: 
-       - !GetAtt IntranetSG.GroupId
+       - !Ref IntranetSG
       Tags:
       - Key: Name
         Value: !Sub '${ServerEnv}-Intranet'
       UserData:
-        !Base64
-          Fn::Sub: |
-            #!/bin/bash
-            apt update
-            apt install apache2 php php-mysql -y
-            system start apache2
-            echo "<h1>Intranet</h1>" >> /var/www/html/index.html 
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          apt update
+          apt install apache2 php php-mysql -y
+          system start apache2
+          echo "<h1>Intranet</h1>" >> /var/www/html/index.html 
       ImageId: ami-035837f5f05288cef     
