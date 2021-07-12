@@ -67,31 +67,59 @@ Resources:
           SourceSecurityGroupId: !Ref EC2SG
       Tags:
         - Key: Name
-          Value: RDSSG      
+          Value: RDSSG  
 
-  VPNSG:
-    Type: AWS::EC2::SecurityGroup
-    DependsOn:
-      - IntranetSG
-    Properties:
-      GroupDescription: >-
-        Enable All traffic from VPN server IP
-      SecurityGroupIngress:
-        - IpProtocol: -1
-          CidrIp: 82.65.71.42/24
-        - IpProtocol: -1
-          SourceSecurityGroupId: !Ref IntranetSG
-      VpcId: !Ref VPC
-      
-  IntranetSG:
+  ICMPSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: >-
-        Allow all traffic
+      GroupDescription: "Groupe de Securite ICMP"
+      GroupName: "ICMP-SG"
       SecurityGroupIngress:
-        - IpProtocol: -1
+        - IpProtocol: icmp
+          FromPort: 8
+          ToPort: -1
           CidrIp: 0.0.0.0/0
-      VpcId: !Ref VPC    
+      VpcId: !Ref VPC
+
+  SSHSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Groupe de Securite SSH"
+      GroupName: "SSH-SG"
+      SecurityGroupIngress:
+        - IpProtocol: "tcp"
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref VPC
+
+  WebIntraSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Groupe de Securite Web Intranet"
+      GroupName: "SSH-WebIntra"
+      SecurityGroupIngress:
+        - IpProtocol: "tcp"
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: "tcp"
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 10.0.0.0/31
+      VpcId: !Ref VPC
+
+  VPNSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Groupe de Securite VPN"
+      GroupName: "VPN-SG"
+      SecurityGroupIngress:
+        - IpProtocol: "tcp"
+          FromPort: 1194
+          ToPort: 1194
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref VPC               
 
 Outputs:
 
@@ -101,15 +129,21 @@ Outputs:
 
   RDSSG:
     Description: "A reference to the security group for RDS"
-    Value: !Ref "RDSSG"
-    Export:
-      Name: !Sub "${ServerEnv}-RDSSG"      
+    Value: !Ref "RDSSG"  
 
-  VPNSG: 
-    Description: "A reference to the security group for VPN"
-    Value: !Ref "VPNSG"        
-
-  IntranetSG: 
-    Description: "A reference to the security group for Intranet"
-    Value: !Ref "IntranetSG"  
+  ICMPSecurityGroup: 
+    Description: "A reference to the security group for ICMPSecurityGroup"
+    Value: !Ref "ICMPSecurityGroup"
+    
+  SSHSecurityGroup: 
+    Description: "A reference to the security group for SSHSecurityGroup"
+    Value: !Ref "SSHSecurityGroup"
+    
+  WebIntraSecurityGroup: 
+    Description: "A reference to the security group for WebIntraSecurityGroup"
+    Value: !Ref "WebIntraSecurityGroup"
+    
+  VPNSecurityGroup: 
+    Description: "A reference to the security group for VPNSecurityGroup"
+    Value: !Ref "VPNSecurityGroup"         
              

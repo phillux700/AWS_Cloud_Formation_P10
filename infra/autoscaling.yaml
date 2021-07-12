@@ -21,6 +21,12 @@ Parameters:
     Type: "String"
   PublicSubnet2:
     Description: "Public Subnet 2"
+    Type: "String"  
+  PublicSubnet1CIDR:
+    Description: "Public Subnet 1 CIDR"
+    Type: "String" 
+  PublicSubnet2CIDR:
+    Description: "Public Subnet 2 CIDR"
     Type: "String"   
   InstanceType:
     Description: "The type of ec2 instance"
@@ -87,7 +93,11 @@ Resources:
       - IpProtocol: tcp
         FromPort: '2049'
         ToPort: '2049'
-        CidrIp: 0.0.0.0/0
+        CidrIp: !Ref PublicSubnet1CIDR
+      - IpProtocol: tcp
+        FromPort: '2049'
+        ToPort: '2049'
+        CidrIp: !Ref PublicSubnet2CIDR
   ## Création du service EFS      
   EFSFileSystem:
     Type: AWS::EFS::FileSystem
@@ -212,17 +222,15 @@ Resources:
           docker exec wordpress wp theme install quark
           docker exec wordpress wp theme activate quark
           docker exec wordpress wp plugin install amazon-s3-and-cloudfront --activate
-          apt -y install git binutils
-          cd /root/
+          apt install git binutils -y
+          cd /root
           git clone https://github.com/aws/efs-utils
           cd efs-utils
           ./build-deb.sh
           apt -y install ./build/amazon-efs-utils*deb
           mkdir /wp_data
           cat << EOF >> /etc/fstab
-          ${EFSFileSystem}:/ /wp_data efs
-              _netdev,noresvport,tls 0 0
-          EOF    
+          echo "${EFSFileSystem}:/ /wp_data efs   _netdev,noresvport,tls 0 0" >> /etc/fstab  
           mount /wp_data 
           sleep 20
         # mount -t efs -o tls ${EFSFileSystem}:/ efs

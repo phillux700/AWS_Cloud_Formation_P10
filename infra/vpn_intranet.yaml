@@ -4,6 +4,9 @@ Description: >
     This template creates Intranet and VPN vai EC2 Instance. 
     Author: Philippe Traon <ptraon@pm.me>
 Parameters:
+  VPC:
+    Description: VPC 
+    Type: "AWS::EC2::VPC::Id"
   ServerEnv:
     Description: "Server Environment name."
     Type: "String"  
@@ -25,59 +28,106 @@ Parameters:
   PrivateSubnet3:
     Description: "Private subnet 3"
     Type: "String"  
-  VPNSG:
-    Description: "VPN Security Group"
+  ICMPSecurityGroup:
+    Description: "ICMP Security Group"
     Type: "AWS::EC2::SecurityGroup::Id" 
-  IntranetSG:
+  SSHSecurityGroup:
+    Description: "SSH Security Group"
+    Type: "AWS::EC2::SecurityGroup::Id"  
+  WebIntraSecurityGroup:
     Description: "Intranet Security Group"
-    Type: "AWS::EC2::SecurityGroup::Id"       
+    Type: "AWS::EC2::SecurityGroup::Id" 
+  VPNSecurityGroup:
+    Description: "VPN Security Group"
+    Type: "AWS::EC2::SecurityGroup::Id"     
 
 Resources:
 
-  ################################### VPN ###################################################
-
-  ###### DOCUMENTATION ######
-  # https://www.networkreverse.com/2020/06/how-to-build-linux-router-with-ubuntu.html
-  ###########################
+  ################################## VPN Instance #############################################
   VPNInstance:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: !Ref InstanceType
-      SourceDestCheck: false
       KeyName: !Ref KeyName
       SubnetId: !Ref PublicSubnet3
-      SecurityGroupIds: 
-       - !Ref VPNSG
+      ImageId: ami-035837f5f05288cef
+      SecurityGroupIds:
+        - !Ref ICMPSecurityGroup
+        - !Ref SSHSecurityGroup
+        - !Ref VPNSecurityGroup
+      Tags:
+        - Key: Name
+          Value: "Instance VPN"
+      PrivateIpAddress: 10.0.2.10
       UserData:
         !Base64
           Fn::Sub: |
             #!/bin/sh
-            apt update 
-            apt install openvpn -y
-            sudo sysctl -w net.ipv4.ip_forward=1
-          # echo 1 > /proc/sys/net/ipv4/ip_forward
-          # masquerade persistent install
-      ImageId: ami-035837f5f05288cef
-      Tags:
-      - Key: Name
-        Value: !Sub '${ServerEnv}-OpenVPN'
+            sudo apt update -y
+            sudo echo 1 > /proc/sys/net/ipv4/ip_forward
+            sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+            echo iptables-persistent iptables-persistent/autosave_v4 boolean true | sudo debconf-set-selections
+            echo iptables-persistent iptables-persistent/autosave_v6 boolean true | sudo debconf-set-selections
+            sudo apt install iptables-persistent -y
+            sed -i 's/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/' /etc/sysctl.conf
+            sudo touch /home/ubuntu/test.txt
+            cd /etc/openvpn
+            git clone http://github.com/sergisergio/key
+            cd key
+            cp cle_aws.pem ../cle_aws.pem
+            cd ../
+            rm -r key
+            sudo apt install openvpn -y
+            cat << EOF > /etc/openvpn/p2p.conf
+            dev tun
+            port 1194
+            remote 82.65.71.42
+            ifconfig 10.0.0.2 10.0.0.1
+            route 192.168.1.0 255.255.255.0
+            route 192.168.2.0 255.255.255.0
+            secret /etc/openvpn/p2p.key
+            cipher AES-256-CBC
+            user nobody
+            group nogroup
+            ping 15
+            ping-restart 45
+            persist-tun
+            persist-key
+            verb 3
+            EOF
+            openvpn --genkey --secret /etc/openvpn/p2p.key
+            chmod 777 /etc/openvpn/p2p.key
 
-  IntranetInstance:
+  ################################## Elastic IP for VPN Instance ###################################
+  ElasticIPInstance:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref VPNInstance
+
+  ################################## Intranet Instance #############################################
+  IntraWebInstance:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: !Ref InstanceType
       KeyName: !Ref KeyName
       SubnetId: !Ref PrivateSubnet3
-      SecurityGroupIds: 
-       - !Ref IntranetSG
+      ImageId: ami-035837f5f05288cef
+      SecurityGroupIds:
+        - !Ref ICMPSecurityGroup
+        - !Ref SSHSecurityGroup
+        - !Ref WebIntraSecurityGroup
       Tags:
-      - Key: Name
-        Value: !Sub '${ServerEnv}-Intranet'
+        - Key: Name
+          Value: "Intranet Web"
+      PrivateIpAddress: 10.0.102.10
       UserData:
-        Fn::Base64: !Sub |
-          #!/bin/bash
-          apt update
-          apt install apache2 php php-mysql -y
-          system start apache2
-          echo "<h1>Intranet</h1>" >> /var/www/html/index.html 
-      ImageId: ami-035837f5f05288cef     
+        !Base64
+          Fn::Sub: |
+            #!/bin/sh
+            sudo apt update -y
+            sudo apt install apache2 -y
+            sudo cp /var/www/html/index.html /var/www/html/index_save.html
+            cat << EOF > /var/www/html/index.html
+            <h1>INTRANET</h1>
+            EOF   

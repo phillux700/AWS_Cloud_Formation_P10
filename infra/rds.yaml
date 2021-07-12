@@ -80,7 +80,7 @@ Resources:
       DBSubnetGroupName: !Ref DBSubnetGroup
       StorageType: gp2
       PubliclyAccessible: false
-      MultiAZ: false
+      MultiAZ: true
       Tags:
         - Key: Name
           Value: !Sub '${ServerEnv}-MasterDatabase'

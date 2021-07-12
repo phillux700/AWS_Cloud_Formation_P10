@@ -14,6 +14,8 @@ Description: >
         - A CloudWatch Alarm and a SNS notification.
 
     2) an intranet through a VPN connection.
+        - An EC2 Instance (VPN Gateway)
+        - An EC2 Instance for Intranet
 
     Author: Philippe Traon <ptraon@pm.me>
 
@@ -46,7 +48,7 @@ Parameters:
     Type: String
     Default: 10.0.1.0/24
   PublicSubnet3CIDR:
-    Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the third Availability Zone
     Type: String
     Default: 10.0.2.0/24
   PrivateSubnet1CIDR:
@@ -54,11 +56,11 @@ Parameters:
     Type: String
     Default: 10.0.100.0/24
   PrivateSubnet2CIDR:
-    Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
     Type: String
     Default: 10.0.101.0/24
   PrivateSubnet3CIDR:
-    Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the third Availability Zone
     Type: String
     Default: 10.0.102.0/24  
   Zone1:
@@ -132,7 +134,7 @@ Parameters:
     NoEcho: 'true'
     Description: "My own IP ton connect EC2 via SSH" 
     Type: String
-    Default: 'XX.XX.XX.XX/24'
+    Default: '82.65.71.42/24'
   TemplateURL:
       Description: "Enter an existing S3 Cloudformation Bucket."
       Type: "String"
@@ -141,7 +143,7 @@ Parameters:
     NoEcho: 'true'
     Description: "IP to connect via VPN" 
     Type: String
-    Default: 'XX.XX.XX.XX/24'
+    Default: '82.65.71.42/24'
   VolumeName:
     Description: The name to be used for the EFS volume
     Type: String
@@ -172,6 +174,15 @@ Mappings:
 
 Resources:  
 
+  ################################## NETWORK STACK #############################################
+  # This nested stack deploys:
+  #     - 1 VPC
+  #     - 6 subnets
+  #     - 1 Internet Gateway
+  #     - 6 routes
+  #     - 3 Elastic IPs
+  #     - 3 NAT Gateways
+  ##############################################################################################
   Network:
     Type: "AWS::CloudFormation::Stack"
     Properties:
@@ -195,6 +206,15 @@ Resources:
         - Key: Name
           Value: Network Stack   
 
+  ################################## NETWORK STACK #############################################
+  # This nested stack deploys6 security groups:
+  #     - EC2 Wordpress
+  #     - RDS
+  #     - ICMP
+  #     - SSH
+  #     - 3 VPN
+  #     - Intranet
+  ##############################################################################################
   SecurityGroup:
     Type: "AWS::CloudFormation::Stack"
     DependsOn: 
@@ -210,6 +230,9 @@ Resources:
         - Key: Name
           Value: SecurityGroup Stack        
 
+  ################################## NETWORK STACK #############################################
+  # This nested stack deploys a S3 Bucket with a IAM user security
+  ##############################################################################################
   S3:
     Type: "AWS::CloudFormation::Stack"
     DependsOn: 
@@ -219,6 +242,9 @@ Resources:
       Parameters:
         ServerEnv: !Ref ServerEnv       
 
+  ################################## NETWORK STACK #############################################
+  # This nested stack deploys a RDS instance with its multi-AZ replica
+  ##############################################################################################
   RDS:
     Type: "AWS::CloudFormation::Stack"
     DependsOn: 
@@ -243,6 +269,9 @@ Resources:
         - Key: Name
           Value: RDS Stack     
 
+  ################################## NETWORK STACK #############################################
+  # This nested stack deploys an application load-balancer (round-robin algorithm) for Wordpress instances
+  ##############################################################################################
   LoadBalancer:
     Type: "AWS::CloudFormation::Stack" 
     Properties:
@@ -256,6 +285,9 @@ Resources:
         - Key: Name
           Value: LoadBalancer Stack        
 
+  ################################## NETWORK STACK #############################################
+  # This nested stack deploys an autoscaling process for wordpress instances
+  ##############################################################################################
   AutoScaling:
     Type: "AWS::CloudFormation::Stack" 
     Properties:
@@ -287,12 +319,18 @@ Resources:
         User: !GetAtt "S3.Outputs.User"
         PublicSubnet1: !GetAtt "Network.Outputs.PublicSubnet1"
         PublicSubnet2: !GetAtt "Network.Outputs.PublicSubnet2"
+        PublicSubnet1CIDR: !Ref PublicSubnet1CIDR
+        PublicSubnet2CIDR: !Ref PublicSubnet2CIDR
+
         VPC: !GetAtt "Network.Outputs.VPC"
         VolumeName: !Ref VolumeName
       Tags:
         - Key: Name
           Value: AutoScaling Stack       
 
+  ################################## NETWORK STACK #############################################
+  # This nested stack deploys two alarms (scale-up ans scale-down)
+  ##############################################################################################
   CloudWatch:
     Type: "AWS::CloudFormation::Stack"
     DependsOn:
@@ -309,6 +347,9 @@ Resources:
         - Key: Name
           Value: CloudWatch Stack   
 
+  ################################## NETWORK STACK #############################################
+  # This nested stack deploys an openVPN EC2 instance and an intranet instance
+  ##############################################################################################
   VPNIntranet:
     Type: "AWS::CloudFormation::Stack"  
     Properties:
@@ -317,16 +358,22 @@ Resources:
         ServerEnv: !Ref ServerEnv
         KeyName: !Ref KeyName
         InstanceType: !Ref InstanceType
-        VPNSG: !GetAtt "SecurityGroup.Outputs.VPNSG"  
-        IntranetSG: !GetAtt "SecurityGroup.Outputs.IntranetSG" 
+        ICMPSecurityGroup: !GetAtt "SecurityGroup.Outputs.ICMPSecurityGroup"  
+        SSHSecurityGroup: !GetAtt "SecurityGroup.Outputs.SSHSecurityGroup" 
+        WebIntraSecurityGroup: !GetAtt "SecurityGroup.Outputs.WebIntraSecurityGroup"  
+        VPNSecurityGroup: !GetAtt "SecurityGroup.Outputs.VPNSecurityGroup"
         PublicSubnet3: !GetAtt "Network.Outputs.PublicSubnet3"
-        PrivateSubnet3: !GetAtt "Network.Outputs.PublicSubnet3"
+        PrivateSubnet3: !GetAtt "Network.Outputs.PrivateSubnet3"
         IPtoAllow: !Ref IPtoAllow
+        VPC: !GetAtt "Network.Outputs.VPC"
         MyIP: !Ref MyIP
       Tags:
         - Key: Name
           Value: VPN and Intranet Stack      
 
+  ################################## NETWORK STACK #############################################
+  # This nested stack allows autoscaling notifications thanks to cloudwatch
+  ##############################################################################################
   SNS:
     Type: "AWS::CloudFormation::Stack"
     Properties:
