@@ -229,7 +229,6 @@ Resources:
           ./build-deb.sh
           apt -y install ./build/amazon-efs-utils*deb
           mkdir /wp_data
-          cat << EOF >> /etc/fstab
           echo "${EFSFileSystem}:/ /wp_data efs   _netdev,noresvport,tls 0 0" >> /etc/fstab  
           mount /wp_data 
           sleep 20

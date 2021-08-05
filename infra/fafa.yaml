@@ -1,0 +1,349 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+ AWS CloudFormation VPC Template
+Parameters:
+ VpcCidrBlock:
+  Type: String
+  Default: 172.16.0.0/16
+  Description: "Entrer le Bloc CIDR du VPC Principal"
+
+ IpPublicHome:
+  Type: String
+  Default: 82.65.71.42
+  Description: "Entrer votre Adresse IP Publique"
+
+ KeyName:
+  Description: Name of an existing EC2 KeyPair to enable SSH access to the instances
+  Type: 'AWS::EC2::KeyPair::KeyName'
+  Default: cle_aws
+  ConstraintDescription: must be the name of an existing EC2 KeyPair.
+
+ LoginOpenVPNHome:
+  Type: String
+  Default: "eleve"
+  Description: "Entrer le Login de l'OpenVPN de l'Entreprise"
+
+ PasswordOpenVPNHome:
+  Type: String
+  Default: "PWD"
+  Description: "Entrer le Mot de Passe de l'OpenVPN de l'Entreprise"
+
+ PortSSHVPNHome:
+  Type: String
+  Default: 22
+  Description: "Entrer le Port SSH de l'OpenVPN de l'Entreprise"
+
+
+ SubnetPublicHome:
+  Type: String
+  Default: 192.168.1.0
+  Description: "Entrer l'Adresse du Sous-Reseau de l'Entreprise"
+
+ PublicSubnet1:
+  Type: String
+  Default: 172.16.1.0/24
+  Description: "Entrer l'Adresse du Premier Sous-Reseau Public dans la Zone de Disponibilite A"
+
+ PrivateSubnet11:
+  Type: String
+  Default: 172.16.11.0/24
+  Description: "Entrer l'Adresse du Premier Sous-Reseau Prive dans la Zone de Disponibilite A"
+
+ PortVPN:
+  Type: String
+  Default: 1194
+  Description: "Entrer votre Numero de Port VPN"
+
+ IpPrivateInstance:
+  Type: String
+  Default: 172.16.1.10
+  Description: "Entrer votre Adresse IP Privee pour le VPN"
+
+ IpPrivateWebInstance:
+  Type: String
+  Default: 172.16.11.10
+  Description: "Entrer votre Adresse IP Privee pour le Serveur Web"
+
+ InstanceType:
+  Description: "Choisir le Type EC2"
+  Type: String
+  Default: t2.micro
+  AllowedValues:
+   - t1.micro
+   - t2.nano
+   - t2.micro
+   - t2.small
+   - t2.medium
+   - t2.large
+   - m1.small
+   - m1.medium
+   - m1.large
+   - m1.xlarge
+   - m2.xlarge
+   - m2.2xlarge
+  ConstraintDescription: "Choisir une Instance EC2 Valide"
+   
+Resources:
+ MyVPC:
+  Type: 'AWS::EC2::VPC'
+  Properties:
+   CidrBlock: !Ref VpcCidrBlock
+   Tags:
+    - Key: Name
+      Value: 'MainVPCFafa'
+
+ PublicSubnet1A:
+  Type: AWS::EC2::Subnet
+  Properties:
+   VpcId:
+    Ref: MyVPC
+   CidrBlock: !Ref PublicSubnet1
+   AvailabilityZone: eu-west-1c
+   Tags:
+    - Key: Name
+      Value: 'SR1-Public-A'
+
+ PrivateSubnet11A:
+  Type: AWS::EC2::Subnet
+  Properties:
+   VpcId:
+    Ref: MyVPC
+   CidrBlock: !Ref PrivateSubnet11
+   AvailabilityZone: eu-west-1c
+   Tags:
+    - Key: Name
+      Value: 'SR11-Private-A'
+
+ InternetGateway:
+  Type: AWS::EC2::InternetGateway
+  Properties:
+   Tags:
+    - Key: Name
+      Value: 'GatewayVPC'
+
+ AttachInternetGateway:
+  Type: 'AWS::EC2::VPCGatewayAttachment'
+  Properties:
+   VpcId: !Ref MyVPC
+   InternetGatewayId: !Ref InternetGateway
+
+ ElasticIPA:
+  Type: AWS::EC2::EIP
+  Properties:
+   Domain: vpc
+   Tags:
+    - Key: Name
+      Value: 'ElasticIPNAT'
+
+ NatGatewayA:
+  DependsOn: AttachInternetGateway
+  Type: AWS::EC2::NatGateway
+  Properties:
+   AllocationId: !GetAtt ElasticIPA.AllocationId
+   SubnetId: !Ref PublicSubnet1A
+   Tags:
+    - Key: Name
+      Value: 'NATGatewayPrivateA'
+
+ PublicRouteTableA:
+  Type: AWS::EC2::RouteTable
+  Properties:
+   VpcId: !Ref MyVPC
+   Tags:
+    - Key: Name
+      Value: 'RouteTablePublicA'
+ AttachPublicRouteTableA:
+  Type: AWS::EC2::SubnetRouteTableAssociation
+  Properties:
+   RouteTableId: !Ref PublicRouteTableA
+   SubnetId: !Ref PublicSubnet1A
+
+ PrivateRouteTableA:
+  Type: AWS::EC2::RouteTable
+  Properties:
+   VpcId: !Ref MyVPC
+   Tags:
+    - Key: Name
+      Value: 'RouteTablePrivateA'
+ AttachPrivateRouteTableA:
+  Type: AWS::EC2::SubnetRouteTableAssociation
+  Properties:
+   RouteTableId: !Ref PrivateRouteTableA
+   SubnetId: !Ref PrivateSubnet11A
+
+ PublicRouteA:
+  Type: AWS::EC2::Route
+  Properties:
+   DestinationCidrBlock: 0.0.0.0/0
+   GatewayId: !Ref InternetGateway
+   RouteTableId: !Ref PublicRouteTableA
+
+ PrivateRouteA:
+  Type: AWS::EC2::Route
+  Properties:
+   DestinationCidrBlock: 0.0.0.0/0
+   NatGatewayId: !Ref NatGatewayA
+   RouteTableId: !Ref PrivateRouteTableA
+
+ ICMPSecurityGroup:
+  Type: AWS::EC2::SecurityGroup
+  Properties:
+   GroupDescription: "Groupe de Securite ICMP"
+   GroupName: "ICMP-SG"
+   SecurityGroupIngress:
+    - IpProtocol: icmp
+      FromPort: 8
+      ToPort: -1
+      CidrIp: 0.0.0.0/0
+   VpcId: !Ref MyVPC
+
+ SSHSecurityGroup:
+  Type: AWS::EC2::SecurityGroup
+  Properties:
+   GroupDescription: "Groupe de Securite SSH"
+   GroupName: "SSH-SG"
+   SecurityGroupIngress:
+    - IpProtocol: "tcp"
+      FromPort: 22
+      ToPort: 22
+      CidrIp: 0.0.0.0/0
+   VpcId: !Ref MyVPC
+
+ WebIntraSecurityGroup:
+  Type: AWS::EC2::SecurityGroup
+  Properties:
+   GroupDescription: "Groupe de Securite Web Intranet"
+   GroupName: "SSH-WebIntra"
+   SecurityGroupIngress:
+    - IpProtocol: "tcp"
+      FromPort: 80
+      ToPort: 80
+      CidrIp: 0.0.0.0/0
+    - IpProtocol: "tcp"
+      FromPort: 80
+      ToPort: 80
+      CidrIp: 10.0.0.0/31
+   VpcId: !Ref MyVPC
+
+ VPNSecurityGroup:
+  Type: AWS::EC2::SecurityGroup
+  Properties:
+   GroupDescription: "Groupe de Securite VPN"
+   GroupName: "VPN-SG"
+   SecurityGroupIngress:
+    - IpProtocol: "tcp"
+      FromPort: 1194
+      ToPort: 1194
+      CidrIp: 0.0.0.0/0
+   VpcId: !Ref MyVPC
+
+ VPNInstance:
+  Type: AWS::EC2::Instance
+  DependsOn:
+   - MyVPC
+  Properties:
+   InstanceType: !Ref InstanceType
+   KeyName: !Ref KeyName
+   SubnetId: !Ref PublicSubnet1A
+   ImageId: ami-035837f5f05288cef
+   SecurityGroupIds:
+    - !Ref ICMPSecurityGroup
+    - !Ref SSHSecurityGroup
+    - !Ref VPNSecurityGroup
+   Tags:
+    - Key: Name
+      Value: "Instance VPN"
+   PrivateIpAddress: !Ref IpPrivateInstance
+   UserData:
+    'Fn::Base64': !Sub |
+         #!/bin/sh
+         sudo apt update -y
+         sudo echo 1 > /proc/sys/net/ipv4/ip_forward
+         sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+         echo iptables-persistent iptables-persistent/autosave_v4 boolean true | sudo debconf-set-selections
+         echo iptables-persistent iptables-persistent/autosave_v6 boolean true | sudo debconf-set-selections
+         sudo apt install iptables-persistent -y
+         sed -i 's/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/' /etc/sysctl.conf
+         sudo touch /home/ubuntu/test.txt
+         cd /etc/openvpn
+         git clone http://github.com/sergisergio/key
+         cd key
+         cp cle_aws.pem ../cle_aws.pem
+         cd ../
+         rm -r key
+         sudo apt install openvpn -y
+         cat << EOF > /etc/openvpn/p2p.conf
+         dev tun
+         port 1194
+         remote 82.65.71.42
+         ifconfig 10.0.0.2 10.0.0.1
+         route 192.168.1.0 255.255.255.0
+         route 192.168.2.0 255.255.255.0
+         secret /etc/openvpn/p2p.key
+         cipher AES-256-CBC
+         user nobody
+         group nogroup
+         ping 15
+         ping-restart 45
+         persist-tun
+         persist-key
+         verb 3
+         EOF
+         openvpn --genkey --secret /etc/openvpn/p2p.key
+         chmod 777 /etc/openvpn/p2p.key
+
+ ElasticIPInstance:
+  Type: AWS::EC2::EIP
+  DependsOn:
+   - VPNInstance
+  Properties:
+   Domain: vpc
+   InstanceId: !Ref VPNInstance
+   Tags:
+    - Key: Name
+      Value: 'ElasticIPInstance'
+
+ IntraWebInstance:
+  Type: AWS::EC2::Instance
+  DependsOn:
+   - MyVPC
+  Properties:
+   InstanceType: !Ref InstanceType
+   KeyName: !Ref KeyName
+   SubnetId: !Ref PrivateSubnet11A
+   ImageId: ami-035837f5f05288cef
+   SecurityGroupIds:
+    - !Ref ICMPSecurityGroup
+    - !Ref SSHSecurityGroup
+    - !Ref WebIntraSecurityGroup
+   Tags:
+    - Key: Name
+      Value: "Intranet Web"
+   PrivateIpAddress: !Ref IpPrivateWebInstance
+   UserData:
+    'Fn::Base64': !Sub |
+         #!/bin/sh
+         sudo apt update -y
+         sudo apt install apache2 -y
+         sudo cp /var/www/html/index.html /var/www/html/index_save.html
+         sudo rm /var/www/html/index.html
+         sudo touch /home/ubuntu/test.txt
+         sudo touch /home/ubuntu/${LoginOpenVPNHome}.txt
+         sudo touch /home/ubuntu/"${PasswordOpenVPNHome}".txt
+         sudo touch /home/ubuntu/${IpPublicHome}.txt
+         cat << EOF > /var/www/html/index.html
+         Bienvenue sur le Site IntraNet de l'Entreprise
+         EOF
+         
+Outputs:
+ IpAddressPrivateInstance:
+  Description: "Adresse IP Privee de l'Instance VPN"
+  Value: !GetAtt VPNInstance.PrivateIp
+  
+ IpAddressPrivateIntraWebInstance:
+  Description: "Adresse IP Privee du Serveur Web de l'Entreprise"
+  Value: !GetAtt IntraWebInstance.PrivateIp
+
+ InstanceIPAddress:
+  Description: "Adresse IP Publique de l'Instance VPN"
+  Value: !Ref ElasticIPInstance

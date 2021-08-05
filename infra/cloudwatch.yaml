@@ -30,11 +30,11 @@ Resources:
   CPUAlarmHigh:
     Type: "AWS::CloudWatch::Alarm"
     Properties:
-      AlarmDescription: "Scale-up if CPU > 80% for 1 minute"
+      AlarmDescription: "Scale-up if CPU > 80% for 5 minutes"
       MetricName: "CPUUtilization"
       Namespace: "AWS/EC2"
       Statistic: "Average"
-      Period: '60'
+      Period: '300'
       EvaluationPeriods: '1'
       Threshold: '80'
       AlarmActions:
